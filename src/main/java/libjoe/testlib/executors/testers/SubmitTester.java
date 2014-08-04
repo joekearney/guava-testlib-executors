@@ -7,27 +7,36 @@ public class SubmitTester<E extends ExecutorService> extends AbstractExecutorTes
 	// TODO rejected execution
 	
 	public void testSubmitSingleRunnableExecutes() throws Exception {
-		Future<?> future = getSubjectGenerator().createTestSubject().submit(noopRunnable());
-		checkFutureAfterCompleted(future, null);
+		LoggingRunnable task = noopRunnable();
+		Future<?> future = getSubjectGenerator().createTestSubject().submit(task);
+		checkFutureAfterCompleted(task, future, null);
 	}
 	public void testSubmitSingleThrowingRunnableExecutes() throws Exception {
-		Future<?> future = getSubjectGenerator().createTestSubject().submit(throwingRunnable());
+		LoggingRunnable task = throwingRunnable();
+		Future<?> future = getSubjectGenerator().createTestSubject().submit(task);
 		checkFutureAfterExecutionException(future);
+		checkTaskRan(task);
 	}
 	public void testSubmitSingleCallableExecutes() throws Exception {
-		Future<?> future = getSubjectGenerator().createTestSubject().submit(callableFor(noopRunnable()));
-		checkFutureAfterCompleted(future, RETURN_VALUE);
+		LoggingRunnable task = noopRunnable();
+		Future<?> future = getSubjectGenerator().createTestSubject().submit(callableFor(task));
+		checkFutureAfterCompleted(task, future, RETURN_VALUE);
 	}
 	public void testSubmitSingleThrowingCallableExecutes() throws Exception {
-		Future<?> future = getSubjectGenerator().createTestSubject().submit(throwingRunnable());
+		LoggingRunnable task = throwingRunnable();
+		Future<?> future = getSubjectGenerator().createTestSubject().submit(task);
 		checkFutureAfterExecutionException(future);
+		checkTaskRan(task);
 	}
 	public void testSubmitSingleRunnableAndValueExecutes() throws Exception {
-		Future<?> future = getSubjectGenerator().createTestSubject().submit(noopRunnable(), RETURN_VALUE);
-		checkFutureAfterCompleted(future, RETURN_VALUE);
+		LoggingRunnable task = noopRunnable();
+		Future<?> future = getSubjectGenerator().createTestSubject().submit(task, RETURN_VALUE);
+		checkFutureAfterCompleted(task, future, RETURN_VALUE);
 	}
 	public void testSubmitSingleThrowingRunnableAndValueExecutes() throws Exception {
-		Future<?> future = getSubjectGenerator().createTestSubject().submit(throwingRunnable(), RETURN_VALUE);
+		LoggingRunnable task = throwingRunnable();
+		Future<?> future = getSubjectGenerator().createTestSubject().submit(task, RETURN_VALUE);
 		checkFutureAfterExecutionException(future);
+		checkTaskRan(task);
 	}
 }

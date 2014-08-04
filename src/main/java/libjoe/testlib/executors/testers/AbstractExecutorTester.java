@@ -7,6 +7,7 @@ import static org.hamcrest.Matchers.sameInstance;
 
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutionException;
@@ -64,11 +65,26 @@ public class AbstractExecutorTester<E extends Executor> extends AbstractTester<E
 		}
 	}
 
+	private final class ThrowingRunnable extends LoggingRunnable {
+		@Override
+		void doRun() {
+			throw new RuntimeException("test exception, expected");
+		}
+	}
+
+	private final class NoopRunnable extends LoggingRunnable {
+		@Override
+		void doRun() {
+		}
+	}
+
 	public abstract class LoggingRunnable implements Runnable {
 		private volatile Thread runningThread = null;
+		private volatile boolean ran = false;
 		
 		@Override
 		public final synchronized void run() {
+			ran = true;
 			Thread thisThread = Thread.currentThread();
 			checkState(runningThread == null, "Runnable should be executed only once. Already executed on thread[%s], tried again on thread [%s]", runningThread, thisThread.getName());
 			runningThread = thisThread;
@@ -81,25 +97,19 @@ public class AbstractExecutorTester<E extends Executor> extends AbstractTester<E
 		public final boolean wasInterrupted() {
 			return getSubjectGenerator().wasInterrupted(runningThread);
 		}
+		public final boolean wasRun() {
+			return ran;
+		}
 	}
 
 	/** Creates a {@link Runnable} that does nothing. */
-	protected Runnable noopRunnable() {
-		return new LoggingRunnable() {
-			@Override
-			void doRun() {
-			}
-		};
+	protected NoopRunnable noopRunnable() {
+		return new NoopRunnable();
 	}
 
 	/** Creates a {@link Runnable} that does nothing. */
-	protected Runnable throwingRunnable() {
-		return new LoggingRunnable() {
-			@Override
-			void doRun() {
-				throw new RuntimeException("test exception, expected");
-			}
-		};
+	protected ThrowingRunnable throwingRunnable() {
+		return new ThrowingRunnable();
 	}
 
 	protected RunnableWithLatch newRunnableWithLatch() {
@@ -120,9 +130,10 @@ public class AbstractExecutorTester<E extends Executor> extends AbstractTester<E
 	protected RunnableWithBarrier newRunnableWithBarrier(int parties) {
 		return new RunnableWithBarrier(parties);
 	}
-	protected final void checkFutureAfterCompleted(Future<?> future, Object expected) throws InterruptedException, ExecutionException,
+	protected final void checkFutureAfterCompleted(LoggingRunnable task, Future<?> future, Object expected) throws InterruptedException, ExecutionException,
 			TimeoutException {
 		Object result = future.get(getTimeoutDuration(), getTimeoutUnit());
+		assertThat("Task should have been executed, but it didn't run.", task.wasRun());
 		assertThat("Future should be isDone() after get() returns", future.isDone());
 		assertThat("Future should not be isCancelled() after get() returns", !future.isCancelled());
 		assertThat("Future should return expected value", result, is(sameInstance(expected)));
@@ -132,6 +143,28 @@ public class AbstractExecutorTester<E extends Executor> extends AbstractTester<E
 		assertThrows(future);
 		assertThat("Future should be isDone() after get() throws", future.isDone());
 		assertThat("Future should not be isCancelled() after get() throws", !future.isCancelled());
+	}
+
+	protected final void checkTaskRan(LoggingRunnable runnable) {
+		assertThat("Task should have been executed, but it didn't run.", runnable.wasRun());
+	}
+
+	protected final void cancelFutureAndCheck(RunnableWithBarrier task, Future<?> future, boolean mayInterruptIfRunning) throws InterruptedException, ExecutionException, TimeoutException {
+		boolean cancelled = future.cancel(mayInterruptIfRunning);
+		try {
+			future.get(getTimeoutDuration(), getTimeoutUnit());
+			fail("Cancelled task should have thrown cancellation exception");
+		} catch (CancellationException e) {
+			// pass
+		}
+		assertThat("Future should be isCancelled() after cancellation", future.isCancelled());
+		if (cancelled) {
+			if (mayInterruptIfRunning) {
+				assertThat("Runnable should have been interrupted", task.wasInterrupted());
+			} else {
+				assertThat("Runnable should not have been interrupted", !task.wasInterrupted());
+			}
+		}
 	}
 
 	public final class RunnableWithBarrier extends LoggingRunnable {

@@ -19,18 +19,18 @@ public class TestsForExecutorsInJavaUtil {
 				return Executors.newSingleThreadExecutor(threadFactory);
 			}
 		}).named("Executors.newSingleThreadExecutor").createTestSuite());
-		suite.addTest(ExecutorTestSuiteBuilder.using(new ExecutorTestSubjectGenerator<ExecutorService>() {
-			@Override
-			protected ExecutorService createExecutor(ThreadFactory threadFactory) {
-				return Executors.newCachedThreadPool(threadFactory);
-			}
-		}).named("Executors.newCachedThreadPool").createTestSuite());
-		suite.addTest(ExecutorTestSuiteBuilder.using(new ExecutorServiceTestSubjectGenerator<ExecutorService>() {
-			@Override
-			protected ExecutorService createExecutor(ThreadFactory threadFactory) {
-				return MoreExecutors.sameThreadExecutor();
-			}
-		}).named("MoreExecutors.sameThreadExecutor").withFeatures(ExecutorFeature.EXECUTOR_SERVICE).createTestSuite());
+//		suite.addTest(ExecutorTestSuiteBuilder.using(new ExecutorTestSubjectGenerator<ExecutorService>() {
+//			@Override
+//			protected ExecutorService createExecutor(ThreadFactory threadFactory) {
+//				return Executors.newCachedThreadPool(threadFactory);
+//			}
+//		}).named("Executors.newCachedThreadPool").createTestSuite());
+//		suite.addTest(ExecutorTestSuiteBuilder.using(new ExecutorServiceTestSubjectGenerator<ExecutorService>() {
+//			@Override
+//			protected ExecutorService createExecutor(ThreadFactory threadFactory) {
+//				return MoreExecutors.sameThreadExecutor();
+//			}
+//		}).named("MoreExecutors.sameThreadExecutor").withFeatures(ExecutorFeature.EXECUTOR_SERVICE).createTestSuite());
 		
 		return suite;
 	}

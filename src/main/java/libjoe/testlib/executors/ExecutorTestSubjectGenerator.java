@@ -24,8 +24,7 @@ public abstract class ExecutorTestSubjectGenerator<E extends Executor> implement
 				.setThreadFactory(new ThreadFactory() {
 					@Override
 					public Thread newThread(Runnable r) {
-						Thread thread = new InterruptRecordingThread();
-						return thread;
+						return new InterruptRecordingThread(r);
 					}
 				})
 				.build();
@@ -34,6 +33,10 @@ public abstract class ExecutorTestSubjectGenerator<E extends Executor> implement
 	private static final class InterruptRecordingThread extends Thread {
 		private volatile boolean wasInterrupted = false;
 		
+		InterruptRecordingThread(Runnable r) {
+			super(r);
+		}
+
 		@Override
 		public void interrupt() {
 			wasInterrupted = true;
