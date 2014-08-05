@@ -10,8 +10,6 @@ import libjoe.testlib.executors.ExecutorFeature.Require;
 
 @Require(value=ExecutorFeature.EXECUTOR_SERVICE)
 public class SubmitTester<E extends ExecutorService> extends AbstractExecutorTester<E> {
-	// TODO rejected execution
-	
 	public void testSubmitSingleTaskExecutes_Runnable() throws Exception {
 		doTestSubmitSingleTaskExecutes(ExecutorSubmitters.RUNNABLE);
 	}
@@ -46,7 +44,7 @@ public class SubmitTester<E extends ExecutorService> extends AbstractExecutorTes
 	private void doTestSubmitSingleThrowingTaskExecutes(ExecutorSubmitter strategy) throws Exception {
 		LoggingRunnable task = throwingRunnable();
 		Future<?> future = strategy.submit(getSubjectGenerator().createTestSubject(), task);
-		checkFutureAfterExecutionException(future);
+		checkFutureAfterExecutionException(task, future);
 		checkTaskRan(task);
 	}
 }

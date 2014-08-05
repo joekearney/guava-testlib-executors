@@ -15,7 +15,7 @@ import com.google.common.collect.testing.TestSubjectGenerator;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 public abstract class ExecutorTestSubjectGenerator<E extends Executor> implements TestSubjectGenerator<E> {
-	static final int UNASSIGNED = -1;
+	public static final int UNASSIGNED = -1;
 	
 	//	private AbstractExecutorTester<E> currentTester;
 	private ThreadFactory threadFactory;
@@ -75,6 +75,9 @@ public abstract class ExecutorTestSubjectGenerator<E extends Executor> implement
 	public final int getConcurrencyLevel() {
         return concurrencyLevel;
     }
+	public final int getMaxQueuedCapacity() {
+		return maxCapacity - concurrencyLevel;
+	}
 	
 	private static final class InterruptRecordingThread extends Thread {
 		private volatile boolean wasInterrupted = false;

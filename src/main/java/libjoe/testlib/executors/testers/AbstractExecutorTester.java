@@ -5,9 +5,11 @@ import static com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.sameInstance;
 
 import java.lang.Thread.State;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
@@ -29,13 +31,16 @@ import junit.framework.AssertionFailedError;
 import libjoe.testlib.executors.ExecutorTestSubjectGenerator;
 
 import com.google.common.base.Objects;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import com.google.common.collect.testing.AbstractTester;
 
 public abstract class AbstractExecutorTester<E extends Executor> extends AbstractTester<ExecutorTestSubjectGenerator<E>> {
-	protected static final Object RETURN_VALUE = new Object();
+	protected static final Object RETURN_VALUE = new Object() {
+		public String toString() {
+			return "DEFAULT_RETURN_VALUE";
+		}
+	};
 
 	@Override
 	public ExecutorTestSubjectGenerator<E> getSubjectGenerator() {
@@ -81,13 +86,21 @@ public abstract class AbstractExecutorTester<E extends Executor> extends Abstrac
         }
     }
 
-    protected final <T> void assertThrows(Future<T> future, Class<? extends Throwable> type) {
+    @SafeVarargs
+	protected final <T> void assertThrows(Future<T> future, Class<? extends Throwable> ... types) {
 		try {
 			future.get(getTimeoutDuration(), getTimeoutUnit());
-			fail("Should have thrown");
+			fail("Should have thrown an exception, but nothing was thrown");
 		} catch (ExecutionException e) {
 			// pass if it's the right type
-			assertThat("Wrong type of cause exception for the ExecutionException", e.getCause(), instanceOf(type));
+			Throwable cause = e.getCause();
+			for (int i = 0; i < types.length; i++) {
+				Class<? extends Throwable> expectedType = types[i];
+				assertThat("Expected exception of type " + expectedType.getName() + " at position " + i
+						+ " in the causal chain, but there was no such causal exception", cause, is(notNullValue()));
+				assertThat("Wrong type of cause exception for the ExecutionException", cause, instanceOf(expectedType));
+				cause = cause.getCause();
+			}
 		} catch (Throwable e) {
 			AssertionFailedError afe = new AssertionFailedError("Threw wrong type of exception. Expected an ExecutionException.");
 			afe.initCause(e);
@@ -110,15 +123,20 @@ public abstract class AbstractExecutorTester<E extends Executor> extends Abstrac
 		assertThat("Future should not be isCancelled() after get() returns", !future.isCancelled());
 		assertThat("Future should return expected value", result, is(sameInstance(expected)));
 	}
-	protected final void checkFutureAfterExecutionException(Future<?> future) {
-		assertThrows(future, RuntimeRunnableException.class);
+	protected final void checkFutureAfterExecutionException(LoggingRunnable task, Future<?> future) {
+		checkFutureAfterExecutionException(task, future, RuntimeRunnableException.class);
+	}
+	@SafeVarargs
+	protected final void checkFutureAfterExecutionException(LoggingRunnable task, Future<?> future, Class<? extends Throwable> ... exceptionClasses) {
+		assertThrows(future, exceptionClasses);
+		checkTaskRan(task);
 		assertThat("Future should be isDone() after get() throws", future.isDone());
 		assertThat("Future should not be isCancelled() after get() throws", !future.isCancelled());
 	}
 	protected final void checkCancelledFuture(Future<?> future) throws InterruptedException, ExecutionException, TimeoutException {
 		try {
-			future.get(getTimeoutDuration(), getTimeoutUnit());
-			fail("Cancelled task should have thrown cancellation exception");
+			Object value = future.get(getTimeoutDuration(), getTimeoutUnit());
+			fail("Cancelled task should have thrown cancellation exception from get(), but it returned value " + value);
 		} catch (CancellationException e) {
 			// pass
 		}
@@ -127,22 +145,43 @@ public abstract class AbstractExecutorTester<E extends Executor> extends Abstrac
 	}
     private static final Set<Thread.State> BLOCKING_STATES = Sets.immutableEnumSet(State.BLOCKED, State.WAITING, State.TIMED_WAITING);
     protected final void checkTaskIsBlocked(LoggingRunnable runningTask) {
+    	/*
+    	 * ... or is blocked soon. Common pattern is to have two barriers in the Runnable, and await once in the main
+    	 * thread. Once that first barrier has been passed the Runnable is definitely running, and it'll be blocking
+    	 * on the barrier in a moment.
+    	 */
+    	
         Thread thread = runningTask.getRunningThread();
         assertThat("Task was expected to be in blocked state, but it hasn't started yet. Task: " + runningTask, thread != null);
         State state = thread.getState();
+        int tries = 0;
+        while (tries++ < 5 && !BLOCKING_STATES.contains(state)) {
+        	// give it just a little pause to see if we need to wait
+        	trySleep(10);
+        	state = thread.getState();
+        }
         assertThat("Expected task in a blocked state (one of " + BLOCKING_STATES + ") but it was " + state, BLOCKING_STATES.contains(state));
     }
 
+	private static void trySleep(long millis) {
+		try {
+			Thread.sleep(millis);
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+		}
+	}
+
 	protected final long getTimeoutDuration() {
 		// TODO make this dependent on features of the test subject? longer for "really" async stuff, if required
-		return 1;
+		return 150;
 	}
 	protected final TimeUnit getTimeoutUnit() {
-		return TimeUnit.SECONDS;
+		return TimeUnit.MILLISECONDS;
 	}
 	
 	protected static interface LoggingRunnable extends Runnable {
-		Callable<Object> asCallableReturningValue();
+		Callable<Object> asCallableReturningDefault();
+		<T> Callable<T> asCallableReturningValue(T result);
 		Callable<Object> asCallableReturningNothing();
 		boolean wasInterrupted();
 		boolean wasRun();
@@ -173,12 +212,16 @@ public abstract class AbstractExecutorTester<E extends Executor> extends Abstrac
 		}
 		
 		@Override
-		public final Callable<Object> asCallableReturningValue() {
+		public final Callable<Object> asCallableReturningDefault() {
 			return Executors.callable(this, RETURN_VALUE);
 		}
 		@Override
 		public final Callable<Object> asCallableReturningNothing() {
 			return Executors.callable(this);
+		}
+		@Override
+		public <T> Callable<T> asCallableReturningValue(T result) {
+			return Executors.callable(this, result);
 		}
 
 		@Override
@@ -226,11 +269,11 @@ public abstract class AbstractExecutorTester<E extends Executor> extends Abstrac
 	}
 	protected final List<RunnableWithBarrier> createManyRunnablesWithBarriers(int numToCreate, int parties, int rounds) {
 	    checkArgument(numToCreate >= 0, "Cannot create [%s] barriers", numToCreate);
-        ImmutableList.Builder<RunnableWithBarrier> tasks = ImmutableList.builder();
+        List<RunnableWithBarrier> tasks = new ArrayList<>(numToCreate);
         for (int i = 0; i < numToCreate; i++) {
             tasks.add(new RunnableWithBarrier(parties, rounds));
         }
-        return tasks.build();
+        return tasks;
     }
 	protected class RunnableWithBarrier extends AbstractLoggingRunnable {
 		private final CyclicBarrier barrier;
@@ -281,8 +324,15 @@ public abstract class AbstractExecutorTester<E extends Executor> extends Abstrac
 		}
 	}
 	/** Creates a {@link Runnable} that does nothing. */
-	protected final NoopRunnable noopRunnable() {
+	protected final LoggingRunnable noopRunnable() {
 		return new NoopRunnable();
+	}
+	protected final List<LoggingRunnable> createManyNoopRunnables(int numToCreate) {
+		List<LoggingRunnable> tasks = new ArrayList<LoggingRunnable>(numToCreate);
+		for (int i = 0; i < numToCreate; i++) {
+			tasks.add(noopRunnable());
+		}
+		return tasks;
 	}
 	private final class NoopRunnable extends AbstractLoggingRunnable {
 		@Override
@@ -292,7 +342,6 @@ public abstract class AbstractExecutorTester<E extends Executor> extends Abstrac
 	protected final ThrowingRunnable throwingRunnable() {
 		return new ThrowingRunnable();
 	}
-
     private final class ThrowingRunnable extends AbstractLoggingRunnable {
 		@Override
 		void doRun() throws RuntimeRunnableException {
@@ -306,6 +355,14 @@ public abstract class AbstractExecutorTester<E extends Executor> extends Abstrac
 		}
 	}
 
+	protected static List<Callable<Object>> asCallables(List<? extends LoggingRunnable> runnables) {
+		List<Callable<Object>> callables = new ArrayList<Callable<Object>>(runnables.size());
+		for (LoggingRunnable runnable : runnables) {
+			callables.add(runnable.asCallableReturningDefault());
+		}
+		return callables;
+	}
+	
 	/**
 	 * Abstraction over the three methods {@link ExecutorService#submit(Runnable)}, {@link ExecutorService#submit(Runnable, Object)}, {@link ExecutorService#submit(Callable)}.
 	 */
@@ -342,7 +399,7 @@ public abstract class AbstractExecutorTester<E extends Executor> extends Abstrac
 		CALLABLE {
 			@Override
 			public Future<?> submit(Executor executor, LoggingRunnable runnable) {
-				return ((ExecutorService) executor).submit(runnable.asCallableReturningValue());
+				return ((ExecutorService) executor).submit(runnable.asCallableReturningDefault());
 			}
 		},
 		RUNNABLE_WITH_VALUE {
@@ -354,7 +411,7 @@ public abstract class AbstractExecutorTester<E extends Executor> extends Abstrac
 		INVOKE_ALL {
 		    @Override
 		    public Future<?> submit(Executor executor, LoggingRunnable runnable) throws InterruptedException {
-		        List<Future<Object>> allFutures = ((ExecutorService) executor).invokeAll(Arrays.asList(runnable.asCallableReturningValue()));
+		        List<Future<Object>> allFutures = ((ExecutorService) executor).invokeAll(Arrays.asList(runnable.asCallableReturningDefault()));
 		        return Iterables.getOnlyElement(allFutures);
 		    }
 		}

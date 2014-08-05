@@ -54,6 +54,8 @@ public enum ExecutorFeature implements Feature<Executor> {
      * actually run the tasks.
      */
 	NO_CONTROL_OF_THREAD_FACTORY(IGNORES_INTERRUPTS),
+	/** Tasks are executed in the order in which they are submitted. */
+	SERIALISED_EXECUTION,
 	;
 
 	private final Set<Feature<? super Executor>> implied;
