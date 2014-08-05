@@ -12,6 +12,7 @@ import java.util.concurrent.ThreadFactory;
 import junit.framework.TestSuite;
 import libjoe.testlib.executors.testers.CancellationTester;
 import libjoe.testlib.executors.testers.ExecuteTester;
+import libjoe.testlib.executors.testers.ListenableFutureTester;
 import libjoe.testlib.executors.testers.SubmitRejectedTester;
 import libjoe.testlib.executors.testers.SubmitTester;
 
@@ -30,7 +31,7 @@ public final class ExecutorTestSuiteBuilder<E extends Executor> extends FeatureS
 	@Override
 	protected List<Class<? extends AbstractTester>> getTesters() {
 		return Arrays.<Class<? extends AbstractTester>>asList(
-				ExecuteTester.class, SubmitTester.class, SubmitRejectedTester.class, CancellationTester.class
+				ExecuteTester.class, SubmitTester.class, SubmitRejectedTester.class, CancellationTester.class, ListenableFutureTester.class
 				);
 	}
 

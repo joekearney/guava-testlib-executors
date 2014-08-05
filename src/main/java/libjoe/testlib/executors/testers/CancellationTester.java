@@ -36,7 +36,7 @@ public class CancellationTester<E extends ExecutorService> extends AbstractExecu
 		
 		try {
 			Future<?> future = strategy.submit(getSubjectGenerator().createTestSubject(), task);
-			task.awaitDefault(); // task definitely running
+			task.awaitBarrierDefault(); // task definitely running
 			
 			boolean cancelled = future.cancel(true);
 			if (cancelled) {
@@ -65,16 +65,16 @@ public class CancellationTester<E extends ExecutorService> extends AbstractExecu
 		
 		try {
 			Future<?> future = submitter.submit(getSubjectGenerator().createTestSubject(), task);
-			task.awaitDefault(); // task now running
+			task.awaitBarrierDefault(); // task now running
 			boolean cancelled = future.cancel(false);
 			assertThat("Should have been able to cancel task, but future.cancel(false) returned false", cancelled);
-			task.awaitDefault(); // task now cancelled but still running
+			task.awaitBarrierDefault(); // task now cancelled but still running
 			
 			assertThat("Future should be isCancelled() after cancellation even before completing", future.isCancelled());
 			assertThat("Future should be isDone() after cancellation even before completing", future.isDone());
 			assertThat("Runnable should not have been interrupted", !task.wasInterrupted());
 			
-			task.awaitDefault(); // task now done, just wait for future to be marked completed
+			task.awaitBarrierDefault(); // task now done, just wait for future to be marked completed
 			
 			checkCancelledFuture(future);
 			assertThat("Runnable should not have been interrupted", !task.wasInterrupted());

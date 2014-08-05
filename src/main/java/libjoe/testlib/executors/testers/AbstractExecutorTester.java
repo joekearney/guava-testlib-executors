@@ -60,7 +60,7 @@ public abstract class AbstractExecutorTester<E extends Executor> extends Abstrac
     
         for (RunnableWithBarrier task : runningTasks) {
             submitter.submit(executor, task);
-            task.awaitDefault();
+            task.awaitBarrierDefault();
             checkTaskIsBlocked(task);
         }
         // now running as many tasks as possible, none queued yet
@@ -105,7 +105,7 @@ public abstract class AbstractExecutorTester<E extends Executor> extends Abstrac
 	protected final void checkCompletedFuture(LoggingRunnable task, Future<?> future, Object expected) throws InterruptedException, ExecutionException,
 			TimeoutException {
 		Object result = future.get(getTimeoutDuration(), getTimeoutUnit());
-		assertThat("Task should have been executed, but it didn't run.", task.wasRun());
+		checkTaskRan(task);
 		assertThat("Future should be isDone() after get() returns", future.isDone());
 		assertThat("Future should not be isCancelled() after get() returns", !future.isCancelled());
 		assertThat("Future should return expected value", result, is(sameInstance(expected)));
@@ -148,6 +148,7 @@ public abstract class AbstractExecutorTester<E extends Executor> extends Abstrac
 		boolean wasRun();
 		boolean hasFinished();
 		boolean awaitRun(long timeout, TimeUnit unit) throws InterruptedException;
+		boolean awaitRunDefault() throws InterruptedException;
         Thread getRunningThread();
 	}
 	protected abstract class AbstractLoggingRunnable implements LoggingRunnable {
@@ -203,6 +204,10 @@ public abstract class AbstractExecutorTester<E extends Executor> extends Abstrac
 		public boolean awaitRun(long timeout, TimeUnit unit) throws InterruptedException {
 			return latchForFirstRun.await(timeout, unit);
 		}
+		@Override
+		public boolean awaitRunDefault() throws InterruptedException {
+		    return latchForFirstRun.await(getTimeoutDuration(), getTimeoutUnit());
+		}
 		
 		@SuppressWarnings("unused")
 		private void logRunning(Thread thisThread) {
@@ -238,10 +243,10 @@ public abstract class AbstractExecutorTester<E extends Executor> extends Abstrac
             this.rounds = rounds;
 		}
 		
-		public final void await(long timeout, TimeUnit unit) throws InterruptedException, BrokenBarrierException, TimeoutException {
+		public final void awaitBarrier(long timeout, TimeUnit unit) throws InterruptedException, BrokenBarrierException, TimeoutException {
 			barrier.await(timeout, unit);
 		}
-		public final void awaitDefault() throws InterruptedException, BrokenBarrierException, TimeoutException {
+		public final void awaitBarrierDefault() throws InterruptedException, BrokenBarrierException, TimeoutException {
 			barrier.await(getTimeoutDuration(), getTimeoutUnit());
 		}
 		public final void resetBarrier() {

@@ -26,7 +26,7 @@ public enum ExecutorFeature implements Feature<Executor> {
 	/** Test subject is an instance of {@link ListeningExecutorService}. */
 	LISTENING(EXECUTOR_SERVICE),
 	/** Test subject is an instance of {@link ScheduledExecutorService}. */
-	SCHEDULED,
+	SCHEDULED(EXECUTOR_SERVICE),
 	
 	/** Tasks are run synchronously with submission, so a call to execute() does not return before task completion, for example. */
 	SYNCHRONOUS_EXECUTE,
