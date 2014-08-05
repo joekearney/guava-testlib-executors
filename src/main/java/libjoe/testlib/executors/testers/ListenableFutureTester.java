@@ -18,6 +18,9 @@ public class ListenableFutureTester<E extends ListeningExecutorService> extends 
     public void testListenableFutureExecuted_Callable() throws Exception {
         doTestListenableFutureExecuted(ExecutorSubmitters.CALLABLE);
     }
+    public void testListenableFutureExecuted_InvokeAll() throws Exception {
+        doTestListenableFutureExecuted(ExecutorSubmitters.INVOKE_ALL);
+    }
     private void doTestListenableFutureExecuted(ExecutorSubmitter submitter) throws Exception {
         LoggingRunnable originalTask = noopRunnable();
         ListenableFuture<?> future = (ListenableFuture<?>) submitter.submit(getSubjectGenerator().createTestSubject(), originalTask);
