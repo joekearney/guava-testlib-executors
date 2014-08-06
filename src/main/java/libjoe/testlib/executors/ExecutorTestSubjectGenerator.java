@@ -76,7 +76,7 @@ public abstract class ExecutorTestSubjectGenerator<E extends Executor> implement
         return concurrencyLevel;
     }
 	public final int getMaxQueuedCapacity() {
-		return maxCapacity - concurrencyLevel;
+		return maxCapacity == UNASSIGNED ? UNASSIGNED : maxCapacity - concurrencyLevel;
 	}
 	
 	private static final class InterruptRecordingThread extends Thread {
