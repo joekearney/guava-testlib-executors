@@ -35,7 +35,7 @@ public class TestsForExecutors {
 		return suite;
 	}
 	
-    private static TestSuite createTestsForGuava() {
+    static TestSuite createTestsForGuava() {
         TestSuite guava = new TestSuite("guava");
 		
 		guava.addTest(ExecutorTestSuiteBuilder.using(new ExecutorTestSubjectGenerator<ListeningExecutorService>() {
@@ -60,7 +60,7 @@ public class TestsForExecutors {
         return guava;
     }
 
-    private static TestSuite createTestsForJavaUtil() {
+    static TestSuite createTestsForJavaUtil() {
         TestSuite javaUtil = new TestSuite("java.util");
 		
 		javaUtil.addTest(ExecutorTestSuiteBuilder.using(new ExecutorTestSubjectGenerator<ExecutorService>() {
@@ -69,9 +69,9 @@ public class TestsForExecutors {
 				return Executors.newSingleThreadExecutor(threadFactory);
 			}
 		}).named("Executors.SingleThreadExecutor as a simple Executor").withFeatures(EXECUTOR, SERIALISED_EXECUTION).createTestSuite());
-		javaUtil.addTest(ExecutorTestSuiteBuilder.using(new ExecutorTestSubjectGenerator<ExecutorService>() {
+		javaUtil.addTest(ExecutorTestSuiteBuilder.using(new ExecutorTestSubjectGenerator<Executor>() {
 			@Override
-			protected ExecutorService createExecutor(ThreadFactory threadFactory) {
+			protected Executor createExecutor(ThreadFactory threadFactory) {
 				return Executors.newSingleThreadExecutor(threadFactory);
 			}
 		}).named("Executors.newSingleThreadExecutor").withFeatures(EXECUTOR_SERVICE, SERIALISED_EXECUTION).createTestSuite());
