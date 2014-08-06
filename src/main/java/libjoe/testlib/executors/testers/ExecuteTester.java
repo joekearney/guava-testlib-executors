@@ -1,7 +1,5 @@
 package libjoe.testlib.executors.testers;
 
-import static libjoe.testlib.executors.ExecutorFeature.SYNCHRONOUS_EXECUTE;
-
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
 
@@ -18,7 +16,7 @@ public class ExecuteTester<E extends Executor> extends AbstractExecutorTester<E>
     /*
      * Tests asserting that execution of a runnable that throws doesn't kill the executor - subsequent tasks should still get queued.
      */
-    @Require(absent = SYNCHRONOUS_EXECUTE)
+    @Require(absent = ExecutorFeature.SYNCHRONOUS_EXECUTE_EXCEPTIONS)
     public void testExecuteThrowingTaskAllowsSubsequentExecute() throws Exception {
         E executor = getSubjectGenerator().createTestSubject();
 
