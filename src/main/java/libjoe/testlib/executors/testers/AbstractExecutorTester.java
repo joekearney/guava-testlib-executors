@@ -9,6 +9,7 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.sameInstance;
 
 import java.lang.Thread.State;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -19,6 +20,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -33,13 +35,15 @@ import libjoe.testlib.executors.LoggingRunnable;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.Sets;
 import com.google.common.collect.testing.AbstractTester;
+import com.google.common.testing.NullPointerTester;
 
-public abstract class AbstractExecutorTester<E extends Executor> extends AbstractTester<ExecutorTestSubjectGenerator<E>> {
-    @Override
-    public ExecutorTestSubjectGenerator<E> getSubjectGenerator() {
-        return super.getSubjectGenerator();
-    }
-
+/**
+ * Support for testers for {@link Executor}s.
+ *
+ * @author Joe Kearney
+ * @param <E> type of the {@link Executor}
+ */
+public abstract class AbstractExecutorTester<E extends Executor, G extends ExecutorTestSubjectGenerator<E>> extends AbstractTester<G> {
     @Override
     public final void setUp() throws Exception {
         getSubjectGenerator().setTester(this);
@@ -48,6 +52,15 @@ public abstract class AbstractExecutorTester<E extends Executor> extends Abstrac
     public final void tearDown() throws Exception {
         getSubjectGenerator().tearDown();
     }
+
+    /**
+     * Creates the test executor.
+     * 
+     * @return a new test subject
+     */
+	protected final E createExecutor() {
+		return getSubjectGenerator().createTestSubject();
+	}
 
     /**
      * Fails the test with a causal exception.
@@ -336,15 +349,37 @@ public abstract class AbstractExecutorTester<E extends Executor> extends Abstrac
     private final class NoopRunnable extends AbstractLoggingRunnable {
         @Override
         void doRun() {}
+        @Override
+        public String toString() {
+        	return getClass().getSimpleName();
+        }
     }
     /** Creates a {@link Runnable} that throws {@link RuntimeRunnableException}. */
     protected final ThrowingRunnable throwingRunnable() {
         return new ThrowingRunnable();
     }
-    private final class ThrowingRunnable extends AbstractLoggingRunnable {
+    protected final void runNullPointerTests(String methodName) {
+		E executor = createExecutor();
+		boolean ranTests = false;
+		for (Method method : ExecutorService.class.getMethods()) {
+			if (method.getName().equals(methodName)) {
+				ranTests = true;
+				new NullPointerTester().testMethod(executor, method);
+			}
+		}
+		if (!ranTests) {
+			throw new AssertionError("Found no methods called [" + methodName + "] on which to run NullPointerTester tests");
+		}
+	}
+
+	private final class ThrowingRunnable extends AbstractLoggingRunnable {
         @Override
         void doRun() throws RuntimeRunnableException {
             throw new RuntimeRunnableException();
+        }
+        @Override
+        public String toString() {
+        	return getClass().getSimpleName();
         }
     }
     /**

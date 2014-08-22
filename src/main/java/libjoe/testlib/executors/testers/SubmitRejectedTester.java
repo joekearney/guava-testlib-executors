@@ -18,7 +18,7 @@ import libjoe.testlib.executors.ExecutorSubmitters;
 public class SubmitRejectedTester<E extends ExecutorService> extends AbstractOneSubmitterExecutorTester<E> {
     @Require(value = { REJECTS_EXCESS_TASKS }, absent = { SYNCHRONOUS_EXECUTE })
     public void testExcessTasksRejected_Execute() throws Exception {
-        E executor = getSubjectGenerator().createTestSubject();
+        E executor = createExecutor();
 
         addTasksToCapacity(executor);
 
@@ -39,7 +39,7 @@ public class SubmitRejectedTester<E extends ExecutorService> extends AbstractOne
     @Require(absent = { REJECTS_EXCESS_TASKS, SYNCHRONOUS_EXECUTE, SYNCHRONOUS_TASK_START })
     public void testMassiveExcessTasksNotRejected() throws Exception {
         final List<RunnableWithBarrier> tasks = new ArrayList<>();
-        E executor = getSubjectGenerator().createTestSubject();
+        E executor = createExecutor();
 
         try {
             for (int i = 0; i < MANY_TASKS; i++) {
@@ -70,7 +70,7 @@ public class SubmitRejectedTester<E extends ExecutorService> extends AbstractOne
          */
         final List<RunnableWithBarrier> tasks = new ArrayList<>();
         final List<Callable<Object>> callables = new ArrayList<>();
-        E executor = getSubjectGenerator().createTestSubject();
+        E executor = createExecutor();
 
         try {
             for (int i = 0; i < MANY_TASKS; i++) {

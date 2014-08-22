@@ -35,6 +35,10 @@ public enum ExecutorSubmitters implements ExecutorSubmitter, Feature<Executor> {
         public Object getExpectedValue() {
             return null;
         }
+        @Override
+        public String getMethodString() {
+        	return "submit(Runnable)";
+        }
     },
     /**
      * Uses {@link ExecutorService#submit(Callable)}, expects {@link ExecutorSubmitter#RETURN_VALUE} as the value in the {@link Future}.
@@ -43,6 +47,10 @@ public enum ExecutorSubmitters implements ExecutorSubmitter, Feature<Executor> {
         @Override
         public Future<?> submit(Executor executor, LoggingRunnable runnable) {
             return ((ExecutorService) executor).submit(runnable.asCallableReturningDefault());
+        }
+        @Override
+        public String getMethodString() {
+        	return "submit(Callable)";
         }
     },
     /**
@@ -54,6 +62,10 @@ public enum ExecutorSubmitters implements ExecutorSubmitter, Feature<Executor> {
         public Future<?> submit(Executor executor, LoggingRunnable runnable) {
             return ((ExecutorService) executor).submit(runnable, RETURN_VALUE);
         }
+        @Override
+        public String getMethodString() {
+        	return "submit(Runnable, returnValue)";
+        }
     },
     /**
      * Uses {@link ExecutorService#invokeAll(Collection)} with a collection holding only the parameter task, expects
@@ -63,8 +75,13 @@ public enum ExecutorSubmitters implements ExecutorSubmitter, Feature<Executor> {
     INVOKE_ALL(ExecutorFeature.SYNCHRONOUS_EXECUTE) {
         @Override
         public Future<?> submit(Executor executor, LoggingRunnable runnable) throws InterruptedException {
-            List<Future<Object>> allFutures = ((ExecutorService) executor).invokeAll(Arrays.asList(runnable.asCallableReturningDefault()));
-            return Iterables.getOnlyElement(allFutures);
+            List<Callable<Object>> task = Arrays.asList(runnable.asCallableReturningDefault());
+			List<Future<Object>> future = ((ExecutorService) executor).invokeAll(task);
+            return Iterables.getOnlyElement(future);
+        }
+        @Override
+        public String getMethodString() {
+        	return "invokeAll({oneTask})";
         }
     };
 

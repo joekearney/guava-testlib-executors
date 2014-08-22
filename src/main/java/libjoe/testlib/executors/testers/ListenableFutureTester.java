@@ -11,19 +11,20 @@ import libjoe.testlib.executors.ExecutorFeature;
 import libjoe.testlib.executors.ExecutorFeature.Require;
 import libjoe.testlib.executors.LoggingRunnable;
 
+import com.google.common.testing.NullPointerTester;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 
 @Require(value = ExecutorFeature.LISTENING)
 public class ListenableFutureTester<E extends ListeningExecutorService> extends AbstractOneSubmitterExecutorTester<E> {
-    public void testListenableFutureExecuted_ControlsFactory() throws Exception {
+    public void testListenableFutureExecuted() throws Exception {
         // make stuff
         ExecutorService ancilliaryExecutor = newAncilliarySingleThreadedExecutor();
         LoggingRunnable listener = noopRunnable();
         LoggingRunnable originalTask = noopRunnable();
 
         // run stuff
-        ListenableFuture<?> future = (ListenableFuture<?>) submit(getSubjectGenerator().createTestSubject(), originalTask);
+        ListenableFuture<?> future = (ListenableFuture<?>) submit(createExecutor(), originalTask);
         future.addListener(listener, ancilliaryExecutor);
 
         // check stuff ran
@@ -33,5 +34,11 @@ public class ListenableFutureTester<E extends ListeningExecutorService> extends 
         // check stuff ran in the right place
         Executor listenerExecutor = getSubjectGenerator().getExecutorForThread(listener.getRunningThread());
         assertThat(listenerExecutor, is(sameInstance((Executor) ancilliaryExecutor)));
+    }
+    
+    public void testListenableFutureNullPointerExceptions() throws InterruptedException {
+    	E executor = createExecutor();
+    	ListenableFuture<?> future = (ListenableFuture<?>) submit(executor, noopRunnable());
+    	new NullPointerTester().testAllPublicInstanceMethods(future);
     }
 }

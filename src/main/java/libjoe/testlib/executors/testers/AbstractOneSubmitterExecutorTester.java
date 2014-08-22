@@ -13,20 +13,14 @@ import libjoe.testlib.executors.ExecutorSubmitter;
 import libjoe.testlib.executors.ExecutorTestSuiteBuilder.OneSubmitterTestSuiteGenerator;
 import libjoe.testlib.executors.LoggingRunnable;
 
-public class AbstractOneSubmitterExecutorTester<E extends Executor> extends AbstractExecutorTester<E> {
-    @Override
-    public OneSubmitterTestSuiteGenerator<E> getSubjectGenerator() {
-        return (OneSubmitterTestSuiteGenerator<E>) super.getSubjectGenerator();
-    }
-
+public class AbstractOneSubmitterExecutorTester<E extends Executor> extends AbstractExecutorTester<E, OneSubmitterTestSuiteGenerator<E>> {
     protected final Future<?> submit(E executor, LoggingRunnable task) throws InterruptedException {
-        return getSubjectGenerator().getSubmitter().submit(executor, task);
+        return getSubmitter().submit(executor, task);
     }
 
     protected final void addTasksToCapacity(E executor) throws InterruptedException, BrokenBarrierException, TimeoutException {
-        addTasksToCapacity(executor, getSubjectGenerator().getSubmitter());
+        addTasksToCapacity(executor, getSubmitter());
     }
-
     protected final ExecutorSubmitter getSubmitter() {
         return getSubjectGenerator().getSubmitter();
     }

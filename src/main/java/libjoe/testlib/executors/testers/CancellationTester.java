@@ -21,7 +21,7 @@ public class CancellationTester<E extends ExecutorService> extends AbstractOneSu
 		RunnableWithBarrier task = new RunnableWithBarrier(2, 2);
 
 		try {
-			Future<?> future = submit(getSubjectGenerator().createTestSubject(), task);
+			Future<?> future = submit(createExecutor(), task);
 			task.awaitBarrierDefault(); // task definitely running
 
 			boolean cancelled = future.cancel(true);
@@ -39,7 +39,7 @@ public class CancellationTester<E extends ExecutorService> extends AbstractOneSu
 		RunnableWithBarrier task = new RunnableWithBarrier(2, 3);
 
 		try {
-			Future<?> future = submit(getSubjectGenerator().createTestSubject(), task);
+			Future<?> future = submit(createExecutor(), task);
 			task.awaitBarrierDefault(); // task now running
 			boolean cancelled = future.cancel(false);
 			assertThat("Should have been able to cancel task, but future.cancel(false) returned false", cancelled);

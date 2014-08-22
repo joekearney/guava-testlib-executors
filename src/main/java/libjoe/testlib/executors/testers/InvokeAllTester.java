@@ -23,7 +23,7 @@ import libjoe.testlib.executors.LoggingRunnable;
 import org.hamcrest.Matchers;
 
 @Require(value = ExecutorFeature.EXECUTOR_SERVICE)
-public class InvokeAllTester<E extends ExecutorService> extends AbstractExecutorTester<E> {
+public class InvokeAllTester<E extends ExecutorService> extends AbstractExecutorTester<E, ExecutorTestSubjectGenerator<E>> {
 	private static final int NUM_TASKS_TO_INVOKE = 8;
 	private int getNumberOfTasksToExecute() {
 		int maxTasks = getSubjectGenerator().getMaxQueuedCapacity();
@@ -36,7 +36,7 @@ public class InvokeAllTester<E extends ExecutorService> extends AbstractExecutor
 
 	public void testInvokeAllCompletesAllTasks_NoTimeout() throws Exception {
 		List<LoggingRunnable> runnables = createManyNoopRunnables(getNumberOfTasksToExecute());
-		List<Future<Object>> futures = getSubjectGenerator().createTestSubject().invokeAll(asCallables(runnables));
+		List<Future<Object>> futures = createExecutor().invokeAll(asCallables(runnables));
 		assertThat(futures, is(Matchers.<Future<Object>>iterableWithSize(runnables.size())));
 		for (int i = 0; i < runnables.size(); i++) {
 			checkCompletedFuture(runnables.get(i), futures.get(i), ExecutorSubmitter.RETURN_VALUE);
@@ -44,7 +44,7 @@ public class InvokeAllTester<E extends ExecutorService> extends AbstractExecutor
 	}
 	public void testInvokeAllCompletesAllTasks_LongTimeout() throws Exception {
 		List<LoggingRunnable> runnables = createManyNoopRunnables(getNumberOfTasksToExecute());
-		List<Future<Object>> futures = getSubjectGenerator().createTestSubject().invokeAll(asCallables(runnables), getTimeoutDuration(),
+		List<Future<Object>> futures = createExecutor().invokeAll(asCallables(runnables), getTimeoutDuration(),
 				getTimeoutUnit());
 		assertThat(futures, is(Matchers.<Future<Object>>iterableWithSize(runnables.size())));
 		for (int i = 0; i < runnables.size(); i++) {
@@ -53,14 +53,14 @@ public class InvokeAllTester<E extends ExecutorService> extends AbstractExecutor
 	}
 	public void testInvokeAllMixedCompletesAllTasks_NoTimeout() throws Exception {
 		List<LoggingRunnable> runnables = Arrays.<LoggingRunnable>asList(noopRunnable(), throwingRunnable(), noopRunnable());
-		List<Future<Object>> futures = getSubjectGenerator().createTestSubject().invokeAll(asCallables(runnables));
+		List<Future<Object>> futures = createExecutor().invokeAll(asCallables(runnables));
 		checkCompletedFuture(runnables.get(0), futures.get(0), ExecutorSubmitter.RETURN_VALUE);
 		checkFutureAfterExecutionException(runnables.get(1), futures.get(1));
 		checkCompletedFuture(runnables.get(2), futures.get(2), ExecutorSubmitter.RETURN_VALUE);
 	}
 	public void testInvokeAllMixedCompletesAllTasks_LongTimeout() throws Exception {
 		List<LoggingRunnable> runnables = Arrays.<LoggingRunnable>asList(noopRunnable(), throwingRunnable(), noopRunnable());
-		List<Future<Object>> futures = getSubjectGenerator().createTestSubject().invokeAll(asCallables(runnables), getTimeoutDuration(), getTimeoutUnit());
+		List<Future<Object>> futures = createExecutor().invokeAll(asCallables(runnables), getTimeoutDuration(), getTimeoutUnit());
 		checkCompletedFuture(runnables.get(0), futures.get(0), ExecutorSubmitter.RETURN_VALUE);
 		checkFutureAfterExecutionException(runnables.get(1), futures.get(1));
 		checkCompletedFuture(runnables.get(2), futures.get(2), ExecutorSubmitter.RETURN_VALUE);
@@ -69,7 +69,7 @@ public class InvokeAllTester<E extends ExecutorService> extends AbstractExecutor
 	@Require(value = ExecutorFeature.SERIALISED_EXECUTION, absent = ExecutorFeature.SYNCHRONOUS_EXCEPTIONS)
 	public void testInvokeAllMixedCompletesAllTasks_ShortTimeout_Async() throws Exception {
 		List<LoggingRunnable> runnables = Arrays.<LoggingRunnable> asList(noopRunnable(), new RunnableWithBarrier(2, 1), noopRunnable());
-		List<Future<Integer>> futures = getSubjectGenerator().createTestSubject().invokeAll(asCountingCallables(runnables), 20,
+		List<Future<Integer>> futures = createExecutor().invokeAll(asCountingCallables(runnables), 20,
 				TimeUnit.MILLISECONDS);
 		checkCompletedFuture(runnables.get(0), futures.get(0), 0);
 		checkCancelledFuture(futures.get(1));
@@ -78,7 +78,7 @@ public class InvokeAllTester<E extends ExecutorService> extends AbstractExecutor
 	@Require(value = { ExecutorFeature.SERIALISED_EXECUTION, ExecutorFeature.SYNCHRONOUS_EXCEPTIONS })
 	public void testInvokeAllMixedCompletesAllTasks_ShortTimeout_Sync() throws Exception {
 		List<LoggingRunnable> runnables = Arrays.<LoggingRunnable>asList(noopRunnable(), new RunnableWithBarrier(2, 1), noopRunnable());
-		List<Future<Integer>> futures = getSubjectGenerator().createTestSubject().invokeAll(asCountingCallables(runnables), 20, TimeUnit.MILLISECONDS);
+		List<Future<Integer>> futures = createExecutor().invokeAll(asCountingCallables(runnables), 20, TimeUnit.MILLISECONDS);
 		checkCompletedFuture(runnables.get(0), futures.get(0), 0);
 		checkFutureAfterExecutionException(runnables.get(1), futures.get(1), RuntimeException.class, TimeoutException.class);
 		checkCancelledFuture(futures.get(2));
@@ -94,16 +94,16 @@ public class InvokeAllTester<E extends ExecutorService> extends AbstractExecutor
 	}
 
 	public void testInvokeAllEmpty_NoTimeout() throws InterruptedException {
-		List<Future<Object>> futures = getSubjectGenerator().createTestSubject().invokeAll(Collections.<Callable<Object>> emptyList());
+		List<Future<Object>> futures = createExecutor().invokeAll(Collections.<Callable<Object>> emptyList());
 		assertThat("ExecutorServices#invokeAll(empty) should return an empty list", futures, is(Collections.<Future<Object>> emptyList()));
 	}
 	public void testInvokeAllEmpty_LongTimeout() throws InterruptedException {
-		List<Future<Object>> futures = getSubjectGenerator().createTestSubject().invokeAll(Collections.<Callable<Object>> emptyList(), getTimeoutDuration(), getTimeoutUnit());
+		List<Future<Object>> futures = createExecutor().invokeAll(Collections.<Callable<Object>> emptyList(), getTimeoutDuration(), getTimeoutUnit());
 		assertThat("ExecutorServices#invokeAll(empty) should return an empty list", futures, is(Collections.<Future<Object>> emptyList()));
 	}
 	public void testInvokeAllSingletonNull_NoTimeout() throws InterruptedException {
 		try {
-			List<Future<Object>> futures = getSubjectGenerator().createTestSubject().invokeAll(Arrays.<Callable<Object>>asList((Callable<Object>)null));
+			List<Future<Object>> futures = createExecutor().invokeAll(Arrays.<Callable<Object>>asList((Callable<Object>)null));
 			fail("invokeAll({null}) should have thrown NullPointerException, but it returned " + futures);
 		} catch (NullPointerException e) {
 			//expected
@@ -111,7 +111,7 @@ public class InvokeAllTester<E extends ExecutorService> extends AbstractExecutor
 	}
 	public void testInvokeAllSingletonNull_LongTimeout() throws InterruptedException {
 		try {
-			List<Future<Object>> futures = getSubjectGenerator().createTestSubject().invokeAll(Arrays.<Callable<Object>>asList((Callable<Object>)null), getTimeoutDuration(), getTimeoutUnit());
+			List<Future<Object>> futures = createExecutor().invokeAll(Arrays.<Callable<Object>>asList((Callable<Object>)null), getTimeoutDuration(), getTimeoutUnit());
 			fail("invokeAll({null}) should have thrown NullPointerException, but it returned " + futures);
 		} catch (NullPointerException e) {
 			//expected
@@ -119,7 +119,7 @@ public class InvokeAllTester<E extends ExecutorService> extends AbstractExecutor
 	}
 	public void testInvokeAllNullAfterCallable_NoTimeout() throws InterruptedException {
 		try {
-			List<Future<Object>> futures = getSubjectGenerator().createTestSubject().invokeAll(Arrays.<Callable<Object>>asList(noopRunnable().asCallableReturningDefault(), null));
+			List<Future<Object>> futures = createExecutor().invokeAll(Arrays.<Callable<Object>>asList(noopRunnable().asCallableReturningDefault(), null));
 			fail("invokeAll({callable, null}) should have thrown NullPointerException, but it returned " + futures);
 		} catch (NullPointerException e) {
 			//expected
@@ -127,7 +127,7 @@ public class InvokeAllTester<E extends ExecutorService> extends AbstractExecutor
 	}
 	public void testInvokeAllNullAfterCallable_LongTimeout() throws InterruptedException {
 		try {
-			List<Future<Object>> futures = getSubjectGenerator().createTestSubject().invokeAll(Arrays.<Callable<Object>>asList(noopRunnable().asCallableReturningDefault(), null), getTimeoutDuration(), getTimeoutUnit());
+			List<Future<Object>> futures = createExecutor().invokeAll(Arrays.<Callable<Object>>asList(noopRunnable().asCallableReturningDefault(), null), getTimeoutDuration(), getTimeoutUnit());
 			fail("invokeAll({callable, null}) should have thrown NullPointerException, but it returned " + futures);
 		} catch (NullPointerException e) {
 			//expected
@@ -135,7 +135,7 @@ public class InvokeAllTester<E extends ExecutorService> extends AbstractExecutor
 	}
 	public void testInvokeAllNull_NoTimeout() throws InterruptedException {
 		try {
-			List<Future<Object>> futures = getSubjectGenerator().createTestSubject().invokeAll(null);
+			List<Future<Object>> futures = createExecutor().invokeAll(null);
 			fail("invokeAll(null) should have thrown NullPointerException, but it returned " + futures);
 		} catch (NullPointerException e) {
 			//expected
@@ -143,10 +143,14 @@ public class InvokeAllTester<E extends ExecutorService> extends AbstractExecutor
 	}
 	public void testInvokeAllNull_LongTimeout() throws InterruptedException {
 		try {
-			List<Future<Object>> futures = getSubjectGenerator().createTestSubject().invokeAll(null, getTimeoutDuration(), getTimeoutUnit());
+			List<Future<Object>> futures = createExecutor().invokeAll(null, getTimeoutDuration(), getTimeoutUnit());
 			fail("invokeAll(null) should have thrown NullPointerException, but it returned " + futures);
 		} catch (NullPointerException e) {
 			//expected
 		}
+	}
+	
+	public void testInvokeAllNullPointerExceptions() throws NoSuchMethodException, SecurityException {
+		runNullPointerTests("invokeAll");
 	}
 }

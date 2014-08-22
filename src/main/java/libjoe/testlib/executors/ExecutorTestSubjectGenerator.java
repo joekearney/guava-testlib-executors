@@ -32,7 +32,7 @@ public abstract class ExecutorTestSubjectGenerator<E extends Executor> implement
     private int concurrencyLevel = UNASSIGNED;
 
 
-	public final void setTester(AbstractExecutorTester<E> currentTester) {
+	public final void setTester(AbstractExecutorTester<E, ? extends ExecutorTestSubjectGenerator<E>> currentTester) {
 		this.threadFactory = newThreadFactory("executor-tester-[" + currentTester.getName() + "." + currentTester.getTestMethodName() + "]-%s");
 		this.ancilliaryThreadFactory = newThreadFactory("executor-ancilliary-[" + currentTester.getName() + "." + currentTester.getTestMethodName() + "]-%s");
 	}

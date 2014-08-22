@@ -6,12 +6,13 @@ import java.util.concurrent.RejectedExecutionException;
 import libjoe.testlib.executors.ExecutorFeature;
 import libjoe.testlib.executors.ExecutorFeature.Require;
 import libjoe.testlib.executors.ExecutorSubmitter;
+import libjoe.testlib.executors.ExecutorTestSubjectGenerator;
 import libjoe.testlib.executors.LoggingRunnable;
 
-public class ExecuteTester<E extends Executor> extends AbstractExecutorTester<E> {
+public class ExecuteTester<E extends Executor> extends AbstractExecutorTester<E, ExecutorTestSubjectGenerator<E>> {
     public void testExecuteSingleTaskExecutes() throws Exception {
         LoggingRunnable task = noopRunnable();
-        E executor = getSubjectGenerator().createTestSubject();
+        E executor = createExecutor();
         executor.execute(task);
         checkTaskRan(task);
     }
@@ -21,7 +22,7 @@ public class ExecuteTester<E extends Executor> extends AbstractExecutorTester<E>
      */
     @Require(absent = ExecutorFeature.SYNCHRONOUS_EXCEPTIONS)
     public void testExecuteThrowingTaskAllowsSubsequentExecute() throws Exception {
-        E executor = getSubjectGenerator().createTestSubject();
+        E executor = createExecutor();
 
         LoggingRunnable throwingRunnable = throwingRunnable();
         LoggingRunnable anotherTask = noopRunnable();
@@ -34,7 +35,7 @@ public class ExecuteTester<E extends Executor> extends AbstractExecutorTester<E>
     }
     @Require(value = ExecutorFeature.SYNCHRONOUS_EXCEPTIONS)
     public void testExecuteThrowingTaskAllowsSubsequentExecute_synchronous() throws Exception {
-        E executor = getSubjectGenerator().createTestSubject();
+        E executor = createExecutor();
 
         LoggingRunnable throwingRunnable = throwingRunnable();
         LoggingRunnable anotherTask = noopRunnable();
@@ -53,7 +54,7 @@ public class ExecuteTester<E extends Executor> extends AbstractExecutorTester<E>
 
     @Require(value = ExecutorFeature.REJECTS_EXCESS_TASKS)
     public void testExcessTasksRejected() throws Exception {
-        E executor = getSubjectGenerator().createTestSubject();
+        E executor = createExecutor();
 
         addTasksToCapacity(executor, ExecutorSubmitter.EXECUTE);
 
@@ -65,4 +66,7 @@ public class ExecuteTester<E extends Executor> extends AbstractExecutorTester<E>
             // expected
         }
     }
+    public void testExecuteNullPointerExceptions() throws Exception {
+		runNullPointerTests("execute");
+	}
 }
