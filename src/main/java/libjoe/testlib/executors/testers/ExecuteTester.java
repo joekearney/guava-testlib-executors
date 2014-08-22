@@ -5,18 +5,21 @@ import java.util.concurrent.RejectedExecutionException;
 
 import libjoe.testlib.executors.ExecutorFeature;
 import libjoe.testlib.executors.ExecutorFeature.Require;
+import libjoe.testlib.executors.ExecutorSubmitter;
+import libjoe.testlib.executors.LoggingRunnable;
 
 public class ExecuteTester<E extends Executor> extends AbstractExecutorTester<E> {
     public void testExecuteSingleTaskExecutes() throws Exception {
         LoggingRunnable task = noopRunnable();
-        getSubjectGenerator().createTestSubject().execute(task);
+        E executor = getSubjectGenerator().createTestSubject();
+        executor.execute(task);
         checkTaskRan(task);
     }
 
     /*
      * Tests asserting that execution of a runnable that throws doesn't kill the executor - subsequent tasks should still get queued.
      */
-    @Require(absent = ExecutorFeature.SYNCHRONOUS_EXECUTE_EXCEPTIONS)
+    @Require(absent = ExecutorFeature.SYNCHRONOUS_EXCEPTIONS)
     public void testExecuteThrowingTaskAllowsSubsequentExecute() throws Exception {
         E executor = getSubjectGenerator().createTestSubject();
 
@@ -29,7 +32,7 @@ public class ExecuteTester<E extends Executor> extends AbstractExecutorTester<E>
         executor.execute(anotherTask);
         checkTaskRan(anotherTask);
     }
-    @Require(value = ExecutorFeature.SYNCHRONOUS_EXECUTE_EXCEPTIONS)
+    @Require(value = ExecutorFeature.SYNCHRONOUS_EXCEPTIONS)
     public void testExecuteThrowingTaskAllowsSubsequentExecute_synchronous() throws Exception {
         E executor = getSubjectGenerator().createTestSubject();
 
@@ -37,7 +40,7 @@ public class ExecuteTester<E extends Executor> extends AbstractExecutorTester<E>
         LoggingRunnable anotherTask = noopRunnable();
 
         try {
-            getSubjectGenerator().createTestSubject().execute(throwingRunnable);
+            executor.execute(throwingRunnable);
             fail("Expected throwingRunnable executed in the current to throw out to the caller, but execute() returned normally");
         } catch (RuntimeRunnableException e) {
             // pass
@@ -52,7 +55,7 @@ public class ExecuteTester<E extends Executor> extends AbstractExecutorTester<E>
     public void testExcessTasksRejected() throws Exception {
         E executor = getSubjectGenerator().createTestSubject();
 
-        addTasksToCapacity(executor, ExecutorSubmitters.EXECUTE);
+        addTasksToCapacity(executor, ExecutorSubmitter.EXECUTE);
 
         // now add one more to the queue, and expect it to pop
         try {

@@ -16,7 +16,9 @@ import java.util.concurrent.TimeoutException;
 
 import libjoe.testlib.executors.ExecutorFeature;
 import libjoe.testlib.executors.ExecutorFeature.Require;
+import libjoe.testlib.executors.ExecutorSubmitter;
 import libjoe.testlib.executors.ExecutorTestSubjectGenerator;
+import libjoe.testlib.executors.LoggingRunnable;
 
 import org.hamcrest.Matchers;
 
@@ -37,7 +39,7 @@ public class InvokeAllTester<E extends ExecutorService> extends AbstractExecutor
 		List<Future<Object>> futures = getSubjectGenerator().createTestSubject().invokeAll(asCallables(runnables));
 		assertThat(futures, is(Matchers.<Future<Object>>iterableWithSize(runnables.size())));
 		for (int i = 0; i < runnables.size(); i++) {
-			checkCompletedFuture(runnables.get(i), futures.get(i), RETURN_VALUE);
+			checkCompletedFuture(runnables.get(i), futures.get(i), ExecutorSubmitter.RETURN_VALUE);
 		}
 	}
 	public void testInvokeAllCompletesAllTasks_LongTimeout() throws Exception {
@@ -46,25 +48,25 @@ public class InvokeAllTester<E extends ExecutorService> extends AbstractExecutor
 				getTimeoutUnit());
 		assertThat(futures, is(Matchers.<Future<Object>>iterableWithSize(runnables.size())));
 		for (int i = 0; i < runnables.size(); i++) {
-			checkCompletedFuture(runnables.get(i), futures.get(i), RETURN_VALUE);
+			checkCompletedFuture(runnables.get(i), futures.get(i), ExecutorSubmitter.RETURN_VALUE);
 		}
 	}
 	public void testInvokeAllMixedCompletesAllTasks_NoTimeout() throws Exception {
 		List<LoggingRunnable> runnables = Arrays.<LoggingRunnable>asList(noopRunnable(), throwingRunnable(), noopRunnable());
 		List<Future<Object>> futures = getSubjectGenerator().createTestSubject().invokeAll(asCallables(runnables));
-		checkCompletedFuture(runnables.get(0), futures.get(0), RETURN_VALUE);
+		checkCompletedFuture(runnables.get(0), futures.get(0), ExecutorSubmitter.RETURN_VALUE);
 		checkFutureAfterExecutionException(runnables.get(1), futures.get(1));
-		checkCompletedFuture(runnables.get(2), futures.get(2), RETURN_VALUE);
+		checkCompletedFuture(runnables.get(2), futures.get(2), ExecutorSubmitter.RETURN_VALUE);
 	}
 	public void testInvokeAllMixedCompletesAllTasks_LongTimeout() throws Exception {
 		List<LoggingRunnable> runnables = Arrays.<LoggingRunnable>asList(noopRunnable(), throwingRunnable(), noopRunnable());
 		List<Future<Object>> futures = getSubjectGenerator().createTestSubject().invokeAll(asCallables(runnables), getTimeoutDuration(), getTimeoutUnit());
-		checkCompletedFuture(runnables.get(0), futures.get(0), RETURN_VALUE);
+		checkCompletedFuture(runnables.get(0), futures.get(0), ExecutorSubmitter.RETURN_VALUE);
 		checkFutureAfterExecutionException(runnables.get(1), futures.get(1));
-		checkCompletedFuture(runnables.get(2), futures.get(2), RETURN_VALUE);
+		checkCompletedFuture(runnables.get(2), futures.get(2), ExecutorSubmitter.RETURN_VALUE);
 	}
 	
-	@Require(value = ExecutorFeature.SERIALISED_EXECUTION, absent = ExecutorFeature.SYNCHRONOUS_EXECUTE_EXCEPTIONS)
+	@Require(value = ExecutorFeature.SERIALISED_EXECUTION, absent = ExecutorFeature.SYNCHRONOUS_EXCEPTIONS)
 	public void testInvokeAllMixedCompletesAllTasks_ShortTimeout_Async() throws Exception {
 		List<LoggingRunnable> runnables = Arrays.<LoggingRunnable> asList(noopRunnable(), new RunnableWithBarrier(2, 1), noopRunnable());
 		List<Future<Integer>> futures = getSubjectGenerator().createTestSubject().invokeAll(asCountingCallables(runnables), 20,
@@ -73,7 +75,7 @@ public class InvokeAllTester<E extends ExecutorService> extends AbstractExecutor
 		checkCancelledFuture(futures.get(1));
 		checkCancelledFuture(futures.get(2));
 	}
-	@Require(value = { ExecutorFeature.SERIALISED_EXECUTION, ExecutorFeature.SYNCHRONOUS_EXECUTE_EXCEPTIONS })
+	@Require(value = { ExecutorFeature.SERIALISED_EXECUTION, ExecutorFeature.SYNCHRONOUS_EXCEPTIONS })
 	public void testInvokeAllMixedCompletesAllTasks_ShortTimeout_Sync() throws Exception {
 		List<LoggingRunnable> runnables = Arrays.<LoggingRunnable>asList(noopRunnable(), new RunnableWithBarrier(2, 1), noopRunnable());
 		List<Future<Integer>> futures = getSubjectGenerator().createTestSubject().invokeAll(asCountingCallables(runnables), 20, TimeUnit.MILLISECONDS);

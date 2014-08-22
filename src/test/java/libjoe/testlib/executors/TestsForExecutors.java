@@ -9,6 +9,7 @@ import static libjoe.testlib.executors.ExecutorFeature.SCHEDULED;
 import static libjoe.testlib.executors.ExecutorFeature.SERIALISED_EXECUTION;
 import static libjoe.testlib.executors.ExecutorFeature.SYNCHRONOUS;
 import static libjoe.testlib.executors.ExecutorFeature.SYNCHRONOUS_EXECUTE;
+import static libjoe.testlib.executors.ExecutorFeature.SYNCHRONOUS_TASK_START;
 
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Executor;
@@ -31,44 +32,19 @@ public class TestsForExecutors {
 
 		suite.addTest(createTestsForJavaUtil());
 		suite.addTest(createTestsForGuava());
-		
+
 		return suite;
 	}
-	
-    static TestSuite createTestsForGuava() {
-        TestSuite guava = new TestSuite("guava");
-		
-		guava.addTest(ExecutorTestSuiteBuilder.using(new ExecutorTestSubjectGenerator<ListeningExecutorService>() {
-					@Override
-					protected ListeningExecutorService createExecutor(ThreadFactory threadFactory) {
-						return MoreExecutors.sameThreadExecutor();
-					}
-				})
-			.named("MoreExecutors.sameThreadExecutor")
-			.withFeatures(LISTENING, EXECUTOR_SERVICE, SYNCHRONOUS, SERIALISED_EXECUTION, NO_CONTROL_OF_THREAD_FACTORY)
-			.createTestSuite());
-		guava.addTest(ExecutorTestSuiteBuilder.using(new ExecutorTestSubjectGenerator<Executor>() {
-				    @Override
-				    protected Executor createExecutor(ThreadFactory threadFactory) {
-				        return PackagePrivateAccessorForGuava.newSerializingExecutor(MoreExecutors.sameThreadExecutor());
-				    }
-				})
-			.named("SerializingExecutor")
-			.withFeatures(EXECUTOR, SYNCHRONOUS_EXECUTE, SERIALISED_EXECUTION)
-			.createTestSuite());
-		
-        return guava;
-    }
 
     static TestSuite createTestsForJavaUtil() {
-        TestSuite javaUtil = new TestSuite("java.util");
-		
+	    TestSuite javaUtil = new TestSuite("java.util");
+
 		javaUtil.addTest(ExecutorTestSuiteBuilder.using(new ExecutorTestSubjectGenerator<ExecutorService>() {
 			@Override
 			protected ExecutorService createExecutor(ThreadFactory threadFactory) {
 				return Executors.newSingleThreadExecutor(threadFactory);
 			}
-		}).named("Executors.SingleThreadExecutor as a simple Executor").withFeatures(EXECUTOR, SERIALISED_EXECUTION).createTestSuite());
+		}).named("Executors.newSingleThreadExecutor as a simple Executor").withFeatures(EXECUTOR, SERIALISED_EXECUTION).createTestSuite());
 		javaUtil.addTest(ExecutorTestSuiteBuilder.using(new ExecutorTestSubjectGenerator<Executor>() {
 			@Override
 			protected Executor createExecutor(ThreadFactory threadFactory) {
@@ -78,18 +54,9 @@ public class TestsForExecutors {
 		javaUtil.addTest(ExecutorTestSuiteBuilder.using(new ExecutorTestSubjectGenerator<ExecutorService>() {
 			@Override
 			protected ExecutorService createExecutor(ThreadFactory threadFactory) {
-				return new ThreadPoolExecutor(0, 1, 0, TimeUnit.SECONDS, new ArrayBlockingQueue<Runnable>(3), threadFactory, new ThreadPoolExecutor.AbortPolicy());
-			}
-		}).named("TPE[core=0,max=1,queueCapacity=3,reh=abort]").withFeatures(EXECUTOR_SERVICE, REJECTS_EXCESS_TASKS)
-		    .withMaxCapacity(4)
-		    .withConcurrencyLevel(1)
-		    .createTestSuite());
-		javaUtil.addTest(ExecutorTestSuiteBuilder.using(new ExecutorTestSubjectGenerator<ExecutorService>() {
-			@Override
-			protected ExecutorService createExecutor(ThreadFactory threadFactory) {
 				return Executors.newCachedThreadPool(threadFactory);
 			}
-		}).named("Executors.newCachedThreadPool").withFeatures(EXECUTOR_SERVICE).createTestSuite());
+		}).named("Executors.newCachedThreadPool").withFeatures(EXECUTOR_SERVICE, SYNCHRONOUS_TASK_START).createTestSuite());
 		javaUtil.addTest(ExecutorTestSuiteBuilder.using(new ExecutorTestSubjectGenerator<ExecutorService>() {
 			@Override
 			protected ExecutorService createExecutor(ThreadFactory threadFactory) {
@@ -108,6 +75,50 @@ public class TestsForExecutors {
 				return Executors.newScheduledThreadPool(2, threadFactory);
 			}
 		}).named("Executors.newScheduledThreadPool[core=2]").withFeatures(SCHEDULED, EXECUTOR_SERVICE).createTestSuite());
-        return javaUtil;
+		javaUtil.addTest(ExecutorTestSuiteBuilder.using(new ExecutorTestSubjectGenerator<ExecutorService>() {
+			@Override
+			protected ExecutorService createExecutor(ThreadFactory threadFactory) {
+				return new ThreadPoolExecutor(0, 1, 0, TimeUnit.SECONDS, new ArrayBlockingQueue<Runnable>(3), threadFactory, new ThreadPoolExecutor.AbortPolicy());
+			}
+		}).named("TPE[core=0,max=1,queueCapacity=3,reh=abort]")
+		    .withFeatures(EXECUTOR_SERVICE, REJECTS_EXCESS_TASKS)
+    		.withMaxCapacity(4)
+    		.withConcurrencyLevel(1)
+    		.createTestSuite());
+	    return javaUtil;
+	}
+
+	static TestSuite createTestsForGuava() {
+        TestSuite guava = new TestSuite("guava");
+
+        guava.addTest(ExecutorTestSuiteBuilder.using(new ExecutorTestSubjectGenerator<ListeningExecutorService>() {
+                    @Override
+                    protected ListeningExecutorService createExecutor(ThreadFactory threadFactory) {
+                        return MoreExecutors.newDirectExecutorService();
+                    }
+                })
+            .named("MoreExecutors.newDirectExecutorService")
+            .withFeatures(LISTENING, EXECUTOR_SERVICE, SYNCHRONOUS, SERIALISED_EXECUTION, NO_CONTROL_OF_THREAD_FACTORY)
+            .createTestSuite());
+        guava.addTest(ExecutorTestSuiteBuilder.using(new ExecutorTestSubjectGenerator<Executor>() {
+                    @Override
+                    protected Executor createExecutor(ThreadFactory threadFactory) {
+                        return MoreExecutors.directExecutor();
+                    }
+                })
+            .named("MoreExecutors.directExecutor")
+            .withFeatures(EXECUTOR, SYNCHRONOUS, SERIALISED_EXECUTION, NO_CONTROL_OF_THREAD_FACTORY)
+            .createTestSuite());
+		guava.addTest(ExecutorTestSuiteBuilder.using(new ExecutorTestSubjectGenerator<Executor>() {
+				    @Override
+				    protected Executor createExecutor(ThreadFactory threadFactory) {
+				        return PackagePrivateAccessorForGuava.newSerializingExecutor(MoreExecutors.directExecutor());
+				    }
+				})
+			.named("SerializingExecutor")
+			.withFeatures(EXECUTOR, SYNCHRONOUS_EXECUTE, SERIALISED_EXECUTION)
+			.createTestSuite());
+
+        return guava;
     }
 }

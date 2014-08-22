@@ -1,11 +1,16 @@
 package libjoe.testlib.executors;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import java.lang.Thread.UncaughtExceptionHandler;
+import java.util.Map;
 import java.util.Queue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicReference;
 
 import javax.annotation.Nullable;
 
@@ -16,23 +21,32 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 public abstract class ExecutorTestSubjectGenerator<E extends Executor> implements TestSubjectGenerator<E> {
 	public static final int UNASSIGNED = -1;
-	
-	//	private AbstractExecutorTester<E> currentTester;
+
 	private ThreadFactory threadFactory;
-	final Queue<E> liveExecutors = new ConcurrentLinkedQueue<E>();
+	private ThreadFactory ancilliaryThreadFactory;
+	final Queue<Executor> liveExecutors = new ConcurrentLinkedQueue<>();
+    private final Map<Thread, ThreadFactory> thread2Factory = new ConcurrentHashMap<>();
+    private final Map<ThreadFactory, Executor> threadFactory2Executor = new ConcurrentHashMap<>();
 
     private int maxCapacity = UNASSIGNED;
     private int concurrencyLevel = UNASSIGNED;
 
+
 	public final void setTester(AbstractExecutorTester<E> currentTester) {
-//		this.currentTester = currentTester;
-		this.threadFactory = new ThreadFactoryBuilder()
+		this.threadFactory = newThreadFactory("executor-tester-[" + currentTester.getName() + "." + currentTester.getTestMethodName() + "]-%s");
+		this.ancilliaryThreadFactory = newThreadFactory("executor-ancilliary-[" + currentTester.getName() + "." + currentTester.getTestMethodName() + "]-%s");
+	}
+    protected ThreadFactory newThreadFactory(String nameFormat) {
+        final AtomicReference<ThreadFactory> factoryReference = new AtomicReference<>();
+        ThreadFactory factory = new ThreadFactoryBuilder()
 				.setDaemon(true)
-				.setNameFormat("executor-tester-[" + currentTester.getName() + "." + currentTester.getTestMethodName() + "]-%s")
+				.setNameFormat(nameFormat)
 				.setThreadFactory(new ThreadFactory() {
 					@Override
 					public Thread newThread(Runnable r) {
-						return new InterruptRecordingThread(r);
+						Thread thread = new InterruptRecordingThread(r);
+						thread2Factory.put(thread, factoryReference.get());
+                        return thread;
 					}
 				})
 				.setUncaughtExceptionHandler(new UncaughtExceptionHandler() {
@@ -42,30 +56,50 @@ public abstract class ExecutorTestSubjectGenerator<E extends Executor> implement
 					}
 				})
 				.build();
-	}
-    final void setMaxCapicity(int maxCapacity) {
+        factoryReference.set(factory);
+        return factory;
+    }
+    final ExecutorTestSubjectGenerator<E> withMaxCapicity(int maxCapacity) {
         this.maxCapacity = maxCapacity;
+        return this;
     }
-    final void setConcurrencyLevel(int concurrencyLevel) {
+    final ExecutorTestSubjectGenerator<E> withConcurrencyLevel(int concurrencyLevel) {
         this.concurrencyLevel = concurrencyLevel;
+        return this;
     }
-	
+
 	@Override
 	public final E createTestSubject() {
-		E executor = createExecutor(threadFactory);
-		liveExecutors.add(executor);
-		return executor;
+		return registerExecutor(createExecutor(threadFactory), threadFactory);
 	}
+    public final <E2 extends Executor> E2 registerExecutor(E2 executor) {
+        return executor;
+    }
+    public <E2 extends Executor> E2 registerExecutor(E2 executor, ThreadFactory threadFactory) {
+        liveExecutors.add(executor);
+        threadFactory2Executor.put(threadFactory, executor);
+        return executor;
+    }
+    public final ThreadFactory getAncilliaryThreadFactory() {
+        return ancilliaryThreadFactory;
+    }
 
 	public final void tearDown() {
 		while (!liveExecutors.isEmpty()) {
 			close(liveExecutors.poll());
 		}
 	}
-	final void close(E usedExecutor) {
+	private final void close(Executor usedExecutor) {
 		if (usedExecutor != null && usedExecutor instanceof ExecutorService) {
 			((ExecutorService) usedExecutor).shutdownNow();
 		}
+	}
+	public final Executor getExecutorForThread(Thread t) {
+	    ThreadFactory factory = thread2Factory.get(t);
+	    checkNotNull(factory, "No registered ThreadFactory found for thread %s", t);
+	    Executor executor = threadFactory2Executor.get(factory);
+	    checkNotNull(executor, "No registered Executor found for thread %s. Factory: %s", t, factory);
+	    return executor;
 	}
 
 	protected abstract E createExecutor(ThreadFactory threadFactory);
@@ -78,10 +112,10 @@ public abstract class ExecutorTestSubjectGenerator<E extends Executor> implement
 	public final int getMaxQueuedCapacity() {
 		return maxCapacity == UNASSIGNED ? UNASSIGNED : maxCapacity - concurrencyLevel;
 	}
-	
+
 	private static final class InterruptRecordingThread extends Thread {
 		private volatile boolean wasInterrupted = false;
-		
+
 		InterruptRecordingThread(Runnable r) {
 			super(r);
 		}
