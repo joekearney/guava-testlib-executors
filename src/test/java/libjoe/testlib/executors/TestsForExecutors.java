@@ -2,6 +2,7 @@ package libjoe.testlib.executors;
 
 import static libjoe.testlib.executors.ExecutorFeature.EXECUTOR;
 import static libjoe.testlib.executors.ExecutorFeature.EXECUTOR_SERVICE;
+import static libjoe.testlib.executors.ExecutorFeature.IGNORES_INTERRUPTS;
 import static libjoe.testlib.executors.ExecutorFeature.LISTENING;
 import static libjoe.testlib.executors.ExecutorFeature.NO_CONTROL_OF_THREAD_FACTORY;
 import static libjoe.testlib.executors.ExecutorFeature.REJECTS_EXCESS_TASKS;
@@ -15,19 +16,23 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ForkJoinPool.ForkJoinWorkerThreadFactory;
+import java.util.concurrent.ForkJoinWorkerThread;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import junit.framework.Test;
 import junit.framework.TestSuite;
+import libjoe.testlib.executors.testers.InvokeAllTester;
 
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.PackagePrivateAccessorForGuava;
 
 public class TestsForExecutors {
-	public static Test suite() {
+	public static Test suite() throws Exception {
 		TestSuite suite = new TestSuite("tests for executors");
 
 		suite.addTest(createTestsForJavaUtil());
@@ -36,7 +41,7 @@ public class TestsForExecutors {
 		return suite;
 	}
 
-    static TestSuite createTestsForJavaUtil() {
+    static TestSuite createTestsForJavaUtil() throws Exception {
 	    TestSuite javaUtil = new TestSuite("java.util");
 
 		javaUtil.addTest(ExecutorTestSuiteBuilder.using(new ExecutorTestSubjectGenerator<ExecutorService>() {
@@ -85,8 +90,54 @@ public class TestsForExecutors {
     		.withMaxCapacity(4)
     		.withConcurrencyLevel(1)
     		.createTestSuite());
+
+		// note the failing test in InvokeAllTester for these two
+        javaUtil.addTest(newForkJoinPoolTestSuiteWithParallelism(1));
+        javaUtil.addTest(newForkJoinPoolTestSuiteWithParallelism(2));
+        javaUtil.addTest(newForkJoinPoolTestSuiteWithParallelism(3));
+
 	    return javaUtil;
 	}
+
+    public static TestSuite newForkJoinPoolTestSuiteWithParallelism(final int parallelism) throws Exception {
+        ExecutorTestSuiteBuilder<ExecutorService> fjpSuite = ExecutorTestSuiteBuilder.using(new ExecutorTestSubjectGenerator<ExecutorService>() {
+            @Override
+            protected ExecutorService createExecutor(final ThreadFactory threadFactory) {
+                ForkJoinWorkerThreadFactory factory = new ForkJoinWorkerThreadFactory() {
+                    @Override
+                    public ForkJoinWorkerThread newThread(ForkJoinPool pool) {
+                        ForkJoinWorkerThread thread = new ForkJoinWorkerThread(pool) {
+                            @Override
+                            public void interrupt() {
+                                notifyThreadInterrupted(this);
+                                super.interrupt();
+                            }
+                        };
+                        notifyNewThread(threadFactory, thread);
+                        thread.setDaemon(true);
+                        return thread;
+                    }
+                };
+                return new ForkJoinPool(parallelism, factory, null, false);
+            }
+        }).named("ForkJoinPool[parallelism=" + parallelism + "]")
+            .withFeatures(EXECUTOR_SERVICE, IGNORES_INTERRUPTS)
+            .withConcurrencyLevel(parallelism);
+
+        /*
+         * This test fails sporadically, possibly more consistently with parallelism=2 than 3. ForkJoinPool#invokeAll cancels tasks when it
+         * sees an exception. Whether this cancellation makes it into the returned future depends on a race condition in (parallel)
+         * execution of the tasks.
+         *
+         * It's not completely clear whether this complies with the spec. The spec doesn't explicitly state that the tasks run
+         * independently, but it feels odd for behaviour of later tasks to depend on earlier ones that threw an exception. That said,
+         * perhaps fork-join should expect this sort of coupling between tasks, in which case cancellation of subsequent tasks may be
+         * reasonable.
+         */
+        fjpSuite.suppressing(InvokeAllTester.class.getMethod("testInvokeAllMixedCompletesAllTasks_NoTimeout"));
+
+        return fjpSuite.createTestSuite();
+    }
 
 	static TestSuite createTestsForGuava() {
         TestSuite guava = new TestSuite("guava");

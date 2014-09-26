@@ -8,10 +8,10 @@ import java.util.concurrent.Future;
 /**
  * Abstraction over the methods of an {@link ExecutorService} that submit tasks, like {@link ExecutorService#submit(Runnable)},
  * {@link ExecutorService#submit(Runnable, Object)}, {@link ExecutorService#submit(Callable)}.
- * 
- * @see ExecutorSubmitters
+ *
+ * @see ExecutorServiceSubmitters
  */
-public interface ExecutorSubmitter {
+public interface ExecutorSubmitter<E extends Executor> {
     public static final Object RETURN_VALUE = new Object() {
         @Override
         public String toString() {
@@ -22,7 +22,7 @@ public interface ExecutorSubmitter {
     /**
      * Uses {@link Executor#execute(Runnable)}, returns a {@code null} {@link Future}.
      */
-    public static final ExecutorSubmitter EXECUTE = new ExecutorSubmitter() {
+    public static final ExecutorSubmitter<Executor> EXECUTE = new ExecutorSubmitter<Executor>() {
         @Override
         public Future<?> submit(Executor executor, LoggingRunnable runnable) {
             executor.execute(runnable);
@@ -38,7 +38,7 @@ public interface ExecutorSubmitter {
         }
     };
 
-    Future<?> submit(Executor executor, LoggingRunnable runnable) throws InterruptedException;
+    Future<?> submit(E executor, LoggingRunnable runnable) throws InterruptedException;
     Object getExpectedValue();
 	String getMethodString();
 }

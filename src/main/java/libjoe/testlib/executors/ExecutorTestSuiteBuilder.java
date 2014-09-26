@@ -12,10 +12,12 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 
 import junit.framework.TestSuite;
+import libjoe.testlib.executors.testers.BasicShutdownTester;
 import libjoe.testlib.executors.testers.CancellationTester;
 import libjoe.testlib.executors.testers.ExecuteTester;
 import libjoe.testlib.executors.testers.InvokeAllTester;
 import libjoe.testlib.executors.testers.ListenableFutureTester;
+import libjoe.testlib.executors.testers.ShutdownTasksTester;
 import libjoe.testlib.executors.testers.SubmitRejectedTester;
 import libjoe.testlib.executors.testers.SubmitTester;
 
@@ -37,7 +39,7 @@ public final class ExecutorTestSuiteBuilder<E extends Executor> extends FeatureS
     @Override
     protected List<Class<? extends AbstractTester>> getTesters() {
         return Arrays.<Class<? extends AbstractTester>>asList(
-                ExecuteTester.class, InvokeAllTester.class
+                ExecuteTester.class, InvokeAllTester.class, BasicShutdownTester.class
             );
     }
 
@@ -87,32 +89,42 @@ public final class ExecutorTestSuiteBuilder<E extends Executor> extends FeatureS
         return testSuite;
     }
 
-    private static final Set<ExecutorSubmitters> ALL_SUBMITTERS = Sets.immutableEnumSet(Arrays.asList(ExecutorSubmitters.values()));
+    private static final Set<ExecutorServiceSubmitters> ALL_ES_SUBMITTERS = Sets.immutableEnumSet(Arrays.asList(ExecutorServiceSubmitters.values()));
+    private static final Set<ScheduledExecutorServiceSubmitters> ALL_SES_SUBMITTERS = Sets.immutableEnumSet(Arrays.asList(ScheduledExecutorServiceSubmitters.values()));
     private TestSuite createDirectTestSuite() {
         TestSuite superTestSuite = super.createTestSuite();
 
         if (getFeatures().contains(ExecutorFeature.EXECUTOR_SERVICE)) {
-            for (ExecutorSubmitters submitter : ExecutorSubmitters.values()) {
-                OneSubmitterTestSuiteGenerator<E> oneMethodGenerator = new OneSubmitterTestSuiteGenerator<>(getSubjectGenerator(), submitter);
-                String oneMethodName = getName() + " [submitter: " + submitter.name() + "]";
-
-                Set<Feature<?>> oneSubmitterFeatures = Helpers.copyToSet(getFeatures());
-                oneSubmitterFeatures.removeAll(ALL_SUBMITTERS);
-                oneSubmitterFeatures.add(submitter);
-
-                OneSubmitterTestSuiteBuilder<E> builder = new OneSubmitterTestSuiteBuilder<>(oneMethodGenerator)
-                    .named(oneMethodName)
-                    .withFeatures(oneSubmitterFeatures)
-                    .withSetUp(getSetUp())
-                    .withTearDown(getTearDown())
-                    .suppressing(getSuppressedTests());
-                TestSuite oneSubmitterTestSuite = builder.createTestSuite();
-                if (oneSubmitterTestSuite.countTestCases() > 0) {
-                    superTestSuite.addTest(oneSubmitterTestSuite);
-                }
-            }
+            addTestsForSubmitters(superTestSuite, ALL_ES_SUBMITTERS);
+        }
+        if (getFeatures().contains(ExecutorFeature.SCHEDULED)) {
+            addTestsForSubmitters(superTestSuite, ALL_SES_SUBMITTERS);
         }
         return superTestSuite;
+    }
+
+    private <ES extends Feature<?> & ExecutorSubmitter<E>> void addTestsForSubmitters(TestSuite superTestSuite, Set<? extends ExecutorSubmitter<?>> allSubmitters) {
+        for (ExecutorSubmitter<?> submitter : allSubmitters) {
+            @SuppressWarnings("unchecked") // feature says this case works, yes this is outside the type system
+            ES castSubmitter = (ES) submitter;
+            OneSubmitterTestSuiteGenerator<E> oneMethodGenerator = new OneSubmitterTestSuiteGenerator<>(getSubjectGenerator(), castSubmitter);
+            String oneMethodName = getName() + " [submitter: " + submitter + "]";
+
+            Set<Feature<?>> oneSubmitterFeatures = Helpers.copyToSet(getFeatures());
+            oneSubmitterFeatures.removeAll(allSubmitters);
+            oneSubmitterFeatures.add(castSubmitter);
+
+            OneSubmitterTestSuiteBuilder<E> builder = new OneSubmitterTestSuiteBuilder<>(oneMethodGenerator)
+                .named(oneMethodName)
+                .withFeatures(oneSubmitterFeatures)
+                .withSetUp(getSetUp())
+                .withTearDown(getTearDown())
+                .suppressing(getSuppressedTests());
+            TestSuite oneSubmitterTestSuite = builder.createTestSuite();
+            if (oneSubmitterTestSuite.countTestCases() > 0) {
+                superTestSuite.addTest(oneSubmitterTestSuite);
+            }
+        }
     }
 
     private TestSuite createDerivedTestSuiteForListenableDecorator(TestSuite testSuite) {
@@ -156,15 +168,15 @@ public final class ExecutorTestSuiteBuilder<E extends Executor> extends FeatureS
         protected List<Class<? extends AbstractTester>> getTesters() {
             return Arrays.<Class<? extends AbstractTester>>asList(
                     SubmitTester.class, SubmitRejectedTester.class, CancellationTester.class,
-                    ListenableFutureTester.class
+                    ListenableFutureTester.class, ShutdownTasksTester.class
                     );
         }
     }
     public static final class OneSubmitterTestSuiteGenerator<E extends Executor> extends ExecutorTestSubjectGenerator<E> {
         private final ExecutorTestSubjectGenerator<E> backingGenerator;
-        private final ExecutorSubmitter submitter;
+        private final ExecutorSubmitter<E> submitter;
 
-        public OneSubmitterTestSuiteGenerator(ExecutorTestSubjectGenerator<E> backingGenerator, ExecutorSubmitter submitter) {
+        public OneSubmitterTestSuiteGenerator(ExecutorTestSubjectGenerator<E> backingGenerator, ExecutorSubmitter<E> submitter) {
             this.backingGenerator = backingGenerator;
             this.submitter = submitter;
 
@@ -176,7 +188,7 @@ public final class ExecutorTestSuiteBuilder<E extends Executor> extends FeatureS
         protected E createExecutor(ThreadFactory threadFactory) {
             return backingGenerator.createExecutor(threadFactory);
         }
-        public ExecutorSubmitter getSubmitter() {
+        public ExecutorSubmitter<E> getSubmitter() {
             return submitter;
         }
     }

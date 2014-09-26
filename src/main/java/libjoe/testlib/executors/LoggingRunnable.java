@@ -1,7 +1,7 @@
 package libjoe.testlib.executors;
 
 import java.util.concurrent.Callable;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 public interface LoggingRunnable extends Runnable {
     Callable<Object> asCallableReturningDefault();
@@ -10,7 +10,9 @@ public interface LoggingRunnable extends Runnable {
     boolean wasInterrupted();
     boolean wasRun();
     boolean hasFinished();
-    boolean awaitRun(long timeout, TimeUnit unit) throws InterruptedException;
-    boolean awaitRunDefault() throws InterruptedException;
+    /**
+     * Wait a short time until this task has started running.
+     */
+    void awaitRunningDefault() throws InterruptedException, TimeoutException;
     Thread getRunningThread();
 }

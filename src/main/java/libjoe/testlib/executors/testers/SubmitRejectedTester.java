@@ -12,7 +12,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 
 import libjoe.testlib.executors.ExecutorFeature.Require;
-import libjoe.testlib.executors.ExecutorSubmitters;
+import libjoe.testlib.executors.ExecutorServiceSubmitters;
 
 @Require(value = { EXECUTOR_SERVICE })
 public class SubmitRejectedTester<E extends ExecutorService> extends AbstractOneSubmitterExecutorTester<E> {
@@ -63,7 +63,7 @@ public class SubmitRejectedTester<E extends ExecutorService> extends AbstractOne
         }
     }
     @Require(absent = { REJECTS_EXCESS_TASKS, SYNCHRONOUS_TASK_START })
-    @ExecutorSubmitters.Require(value=ExecutorSubmitters.INVOKE_ALL)
+    @ExecutorServiceSubmitters.Require(value=ExecutorServiceSubmitters.INVOKE_ALL)
     public void testMassiveExcessTasksNotRejected_InvokeAll() throws Exception {
         /*
          * This differs from the above in that all of the tasks are submitted in a batch.

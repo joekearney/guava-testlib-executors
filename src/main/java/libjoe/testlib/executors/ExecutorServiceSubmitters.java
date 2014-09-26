@@ -8,7 +8,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Callable;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
@@ -22,14 +21,14 @@ import com.google.common.collect.testing.features.TesterAnnotation;
  *
  * @author Joe Kearney
  */
-public enum ExecutorSubmitters implements ExecutorSubmitter, Feature<Executor> {
+public enum ExecutorServiceSubmitters implements ExecutorSubmitter<ExecutorService>, Feature<ExecutorService> {
     /**
      * Uses {@link ExecutorService#submit(Runnable)}, expects a {@code null} value in the {@link Future}.
      */
     RUNNABLE {
         @Override
-        public Future<?> submit(Executor executor, LoggingRunnable runnable) {
-            return ((ExecutorService) executor).submit(runnable);
+        public Future<?> submit(ExecutorService executor, LoggingRunnable runnable) {
+            return executor.submit(runnable);
         }
         @Override
         public Object getExpectedValue() {
@@ -45,8 +44,8 @@ public enum ExecutorSubmitters implements ExecutorSubmitter, Feature<Executor> {
      */
     CALLABLE {
         @Override
-        public Future<?> submit(Executor executor, LoggingRunnable runnable) {
-            return ((ExecutorService) executor).submit(runnable.asCallableReturningDefault());
+        public Future<?> submit(ExecutorService executor, LoggingRunnable runnable) {
+            return executor.submit(runnable.asCallableReturningDefault());
         }
         @Override
         public String getMethodString() {
@@ -59,8 +58,8 @@ public enum ExecutorSubmitters implements ExecutorSubmitter, Feature<Executor> {
      */
     RUNNABLE_WITH_VALUE {
         @Override
-        public Future<?> submit(Executor executor, LoggingRunnable runnable) {
-            return ((ExecutorService) executor).submit(runnable, RETURN_VALUE);
+        public Future<?> submit(ExecutorService executor, LoggingRunnable runnable) {
+            return executor.submit(runnable, RETURN_VALUE);
         }
         @Override
         public String getMethodString() {
@@ -74,9 +73,9 @@ public enum ExecutorSubmitters implements ExecutorSubmitter, Feature<Executor> {
      */
     INVOKE_ALL(ExecutorFeature.SYNCHRONOUS_EXECUTE) {
         @Override
-        public Future<?> submit(Executor executor, LoggingRunnable runnable) throws InterruptedException {
+        public Future<?> submit(ExecutorService executor, LoggingRunnable runnable) throws InterruptedException {
             List<Callable<Object>> task = Arrays.asList(runnable.asCallableReturningDefault());
-			List<Future<Object>> future = ((ExecutorService) executor).invokeAll(task);
+			List<Future<Object>> future = executor.invokeAll(task);
             return Iterables.getOnlyElement(future);
         }
         @Override
@@ -90,15 +89,15 @@ public enum ExecutorSubmitters implements ExecutorSubmitter, Feature<Executor> {
         return RETURN_VALUE;
     }
 
-    private final Set<Feature<? super Executor>> implied;
+    private final Set<Feature<? super ExecutorService>> implied;
 
     @SafeVarargs
-    private ExecutorSubmitters(Feature<? super Executor>... implied) {
+    private ExecutorServiceSubmitters(Feature<? super ExecutorService>... implied) {
         this.implied = Helpers.copyToSet(implied);
     }
 
     @Override
-    public Set<Feature<? super Executor>> getImpliedFeatures() {
+    public Set<Feature<? super ExecutorService>> getImpliedFeatures() {
         return implied;
     }
 
@@ -106,7 +105,7 @@ public enum ExecutorSubmitters implements ExecutorSubmitter, Feature<Executor> {
     @Inherited
     @TesterAnnotation
     public @interface Require {
-        public abstract ExecutorSubmitters[] value() default {};
-        public abstract ExecutorSubmitters[] absent() default {};
+        public abstract ExecutorServiceSubmitters[] value() default {};
+        public abstract ExecutorServiceSubmitters[] absent() default {};
     }
 }

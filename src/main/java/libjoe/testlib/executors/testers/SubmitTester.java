@@ -15,7 +15,7 @@ import com.google.common.testing.NullPointerTester;
 public class SubmitTester<E extends ExecutorService> extends AbstractOneSubmitterExecutorTester<E> {
 	public void testSubmitSingleTaskExecutes() throws Exception {
 		LoggingRunnable task = noopRunnable();
-		ExecutorSubmitter submitter = getSubjectGenerator().getSubmitter();
+		ExecutorSubmitter<E> submitter = getSubjectGenerator().getSubmitter();
         Future<?> future = submitter.submit(createExecutor(), task);
 		checkCompletedFuture(task, future, submitter.getExpectedValue());
 	}
@@ -26,7 +26,7 @@ public class SubmitTester<E extends ExecutorService> extends AbstractOneSubmitte
 		checkFutureAfterExecutionException(task, future);
 		checkTaskRan(task);
 	}
-	
+
 	public void testSubmitNullPointerExceptions() throws InterruptedException, NoSuchMethodException, SecurityException {
 		E executor = createExecutor();
 		new NullPointerTester().testMethod(executor, ExecutorService.class.getMethod("submit", Callable.class));

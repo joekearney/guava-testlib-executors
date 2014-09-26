@@ -75,6 +75,8 @@ public enum ExecutorFeature implements Feature<Executor> {
     NO_CONTROL_OF_THREAD_FACTORY(IGNORES_INTERRUPTS),
     /** Tasks are executed in the order in which they are submitted. */
     SERIALISED_EXECUTION,
+    /** Shutdown methods are not supported */
+    SHUTDOWN_SUPPRESSED,
     ;
 
     private final Set<Feature<? super Executor>> implied;

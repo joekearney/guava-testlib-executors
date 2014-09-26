@@ -44,20 +44,30 @@ public class InvokeAllTester<E extends ExecutorService> extends AbstractExecutor
 	}
 	public void testInvokeAllCompletesAllTasks_LongTimeout() throws Exception {
 		List<LoggingRunnable> runnables = createManyNoopRunnables(getNumberOfTasksToExecute());
-		List<Future<Object>> futures = createExecutor().invokeAll(asCallables(runnables), getTimeoutDuration(),
-				getTimeoutUnit());
+		List<Future<Object>> futures = createExecutor().invokeAll(asCallables(runnables), getTimeoutDuration(), getTimeoutUnit());
 		assertThat(futures, is(Matchers.<Future<Object>>iterableWithSize(runnables.size())));
 		for (int i = 0; i < runnables.size(); i++) {
 			checkCompletedFuture(runnables.get(i), futures.get(i), ExecutorSubmitter.RETURN_VALUE);
 		}
 	}
-	public void testInvokeAllMixedCompletesAllTasks_NoTimeout() throws Exception {
-		List<LoggingRunnable> runnables = Arrays.<LoggingRunnable>asList(noopRunnable(), throwingRunnable(), noopRunnable());
-		List<Future<Object>> futures = createExecutor().invokeAll(asCallables(runnables));
-		checkCompletedFuture(runnables.get(0), futures.get(0), ExecutorSubmitter.RETURN_VALUE);
-		checkFutureAfterExecutionException(runnables.get(1), futures.get(1));
-		checkCompletedFuture(runnables.get(2), futures.get(2), ExecutorSubmitter.RETURN_VALUE);
-	}
+    public void testInvokeAllMixedCompletesAllTasks_NoTimeout() throws Exception {
+        /*
+         * This test fails sporadically for ForkJoinPool, possibly more consistently with parallelism=2 than 3. ForkJoinPool#invokeAll
+         * cancels tasks when it sees an exception. Whether this cancellation makes it into the returned future depends on a race condition
+         * in (parallel) execution of the tasks.
+         *
+         * It's not completely clear whether this complies with the spec. The spec doesn't explicitly state that the tasks run
+         * independently, but it feels odd for behaviour of later tasks to depend on earlier ones that threw an exception. That said,
+         * perhaps fork-join should expect this sort of coupling between tasks, in which case cancellation of subsequent tasks may be
+         * reasonable.
+         */
+
+        List<LoggingRunnable> runnables = Arrays.<LoggingRunnable> asList(noopRunnable(), throwingRunnable(), noopRunnable());
+        List<Future<Object>> futures = createExecutor().invokeAll(asCallables(runnables));
+        checkCompletedFuture(runnables.get(0), futures.get(0), ExecutorSubmitter.RETURN_VALUE);
+        checkFutureAfterExecutionException(runnables.get(1), futures.get(1));
+        checkCompletedFuture(runnables.get(2), futures.get(2), ExecutorSubmitter.RETURN_VALUE);
+    }
 	public void testInvokeAllMixedCompletesAllTasks_LongTimeout() throws Exception {
 		List<LoggingRunnable> runnables = Arrays.<LoggingRunnable>asList(noopRunnable(), throwingRunnable(), noopRunnable());
 		List<Future<Object>> futures = createExecutor().invokeAll(asCallables(runnables), getTimeoutDuration(), getTimeoutUnit());
@@ -65,7 +75,7 @@ public class InvokeAllTester<E extends ExecutorService> extends AbstractExecutor
 		checkFutureAfterExecutionException(runnables.get(1), futures.get(1));
 		checkCompletedFuture(runnables.get(2), futures.get(2), ExecutorSubmitter.RETURN_VALUE);
 	}
-	
+
 	@Require(value = ExecutorFeature.SERIALISED_EXECUTION, absent = ExecutorFeature.SYNCHRONOUS_EXCEPTIONS)
 	public void testInvokeAllMixedCompletesAllTasks_ShortTimeout_Async() throws Exception {
 		List<LoggingRunnable> runnables = Arrays.<LoggingRunnable> asList(noopRunnable(), new RunnableWithBarrier(2, 1), noopRunnable());
@@ -149,7 +159,7 @@ public class InvokeAllTester<E extends ExecutorService> extends AbstractExecutor
 			//expected
 		}
 	}
-	
+
 	public void testInvokeAllNullPointerExceptions() throws NoSuchMethodException, SecurityException {
 		runNullPointerTests("invokeAll");
 	}

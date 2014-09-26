@@ -5,6 +5,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import java.lang.Thread.UncaughtExceptionHandler;
 import java.util.Map;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
@@ -16,6 +17,7 @@ import javax.annotation.Nullable;
 
 import libjoe.testlib.executors.testers.AbstractExecutorTester;
 
+import com.google.common.collect.Sets;
 import com.google.common.collect.testing.TestSubjectGenerator;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
@@ -24,9 +26,10 @@ public abstract class ExecutorTestSubjectGenerator<E extends Executor> implement
 
 	private ThreadFactory threadFactory;
 	private ThreadFactory ancilliaryThreadFactory;
-	final Queue<Executor> liveExecutors = new ConcurrentLinkedQueue<>();
+	private final Queue<Executor> liveExecutors = new ConcurrentLinkedQueue<>();
     private final Map<Thread, ThreadFactory> thread2Factory = new ConcurrentHashMap<>();
     private final Map<ThreadFactory, Executor> threadFactory2Executor = new ConcurrentHashMap<>();
+    private final Set<Thread> interruptedThreads = Sets.newConcurrentHashSet();
 
     private int maxCapacity = UNASSIGNED;
     private int concurrencyLevel = UNASSIGNED;
@@ -45,7 +48,8 @@ public abstract class ExecutorTestSubjectGenerator<E extends Executor> implement
 					@Override
 					public Thread newThread(Runnable r) {
 						Thread thread = new InterruptRecordingThread(r);
-						thread2Factory.put(thread, factoryReference.get());
+						ThreadFactory factory = factoryReference.get();
+                        notifyNewThread(factory, thread);
                         return thread;
 					}
 				})
@@ -75,7 +79,7 @@ public abstract class ExecutorTestSubjectGenerator<E extends Executor> implement
     public final <E2 extends Executor> E2 registerExecutor(E2 executor) {
         return executor;
     }
-    public <E2 extends Executor> E2 registerExecutor(E2 executor, ThreadFactory threadFactory) {
+    public final <E2 extends Executor> E2 registerExecutor(E2 executor, ThreadFactory threadFactory) {
         liveExecutors.add(executor);
         threadFactory2Executor.put(threadFactory, executor);
         return executor;
@@ -113,20 +117,24 @@ public abstract class ExecutorTestSubjectGenerator<E extends Executor> implement
 		return maxCapacity == UNASSIGNED ? UNASSIGNED : maxCapacity - concurrencyLevel;
 	}
 
-	private static final class InterruptRecordingThread extends Thread {
-		private volatile boolean wasInterrupted = false;
-
+	private final class InterruptRecordingThread extends Thread {
 		InterruptRecordingThread(Runnable r) {
 			super(r);
 		}
 
 		@Override
 		public void interrupt() {
-			wasInterrupted = true;
+		    notifyThreadInterrupted(this);
 			super.interrupt();
 		}
 	}
-	public static boolean wasInterrupted(@Nullable Thread thread) {
-		return thread != null && thread instanceof InterruptRecordingThread && ((InterruptRecordingThread)thread).wasInterrupted;
+	public final boolean wasInterrupted(@Nullable Thread thread) {
+		return interruptedThreads.contains(thread);
 	}
+    public final void notifyThreadInterrupted(Thread thread) {
+        interruptedThreads.add(thread);
+    }
+    public final void notifyNewThread(ThreadFactory factory, Thread thread) {
+        thread2Factory.put(thread, factory);
+    }
 }

@@ -8,14 +8,17 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.sameInstance;
 
+import java.io.Closeable;
 import java.lang.Thread.State;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutionException;
@@ -44,18 +47,25 @@ import com.google.common.testing.NullPointerTester;
  * @param <E> type of the {@link Executor}
  */
 public abstract class AbstractExecutorTester<E extends Executor, G extends ExecutorTestSubjectGenerator<E>> extends AbstractTester<G> {
+    private final Queue<Closeable> toClose = new ConcurrentLinkedQueue<>();
+
     @Override
     public final void setUp() throws Exception {
         getSubjectGenerator().setTester(this);
     }
     @Override
     public final void tearDown() throws Exception {
+        while (!toClose.isEmpty()) {
+            try {
+                toClose.poll().close();
+            } catch (Exception swallow) {}
+        }
         getSubjectGenerator().tearDown();
     }
 
     /**
      * Creates the test executor.
-     * 
+     *
      * @return a new test subject
      */
 	protected final E createExecutor() {
@@ -74,7 +84,7 @@ public abstract class AbstractExecutorTester<E extends Executor, G extends Execu
         throw afe;
     }
 
-    protected final void addTasksToCapacity(E executor, ExecutorSubmitter submitter) throws InterruptedException, BrokenBarrierException, TimeoutException {
+    protected final void addTasksToCapacity(E executor, ExecutorSubmitter<? super E> submitter) throws InterruptedException, BrokenBarrierException, TimeoutException {
         int maxCapacity = getSubjectGenerator().getMaxCapacity();
         int concurrencyLevel = getSubjectGenerator().getConcurrencyLevel();
 
@@ -125,11 +135,9 @@ public abstract class AbstractExecutorTester<E extends Executor, G extends Execu
             throw afe;
         }
     }
-    protected final void checkTaskRan(LoggingRunnable runnable) {
+    protected final void checkTaskRan(LoggingRunnable runnable) throws TimeoutException {
         try {
-            if (!runnable.awaitRunDefault()) {
-                fail("Timeout waiting for " + runnable + " to complete");
-            }
+            runnable.awaitRunningDefault();
         } catch (InterruptedException e) {
             throw new RuntimeException("Thread was interrupted while waiting for task to finish", e);
         }
@@ -143,11 +151,11 @@ public abstract class AbstractExecutorTester<E extends Executor, G extends Execu
         assertThat("Future should not be isCancelled() after get() returns", !future.isCancelled());
         assertThat("Future should return expected value", result, is(sameInstance(expected)));
     }
-    protected final void checkFutureAfterExecutionException(LoggingRunnable task, Future<?> future) {
+    protected final void checkFutureAfterExecutionException(LoggingRunnable task, Future<?> future) throws TimeoutException {
         checkFutureAfterExecutionException(task, future, RuntimeRunnableException.class);
     }
     @SafeVarargs
-    protected final void checkFutureAfterExecutionException(LoggingRunnable task, Future<?> future, Class<? extends Throwable> ... exceptionClasses) {
+    protected final void checkFutureAfterExecutionException(LoggingRunnable task, Future<?> future, Class<? extends Throwable> ... exceptionClasses) throws TimeoutException {
         assertThrows(future, exceptionClasses);
         checkTaskRan(task);
         assertThat("Future should be isDone() after get() throws", future.isDone());
@@ -191,6 +199,13 @@ public abstract class AbstractExecutorTester<E extends Executor, G extends Execu
         }
     }
 
+    protected final void awaitTermination(ExecutorService executorService) throws InterruptedException, TimeoutException {
+        if (!executorService.awaitTermination(getTimeoutDuration(), getTimeoutUnit())) {
+            throw new TimeoutException("Executor did not terminate quickly enough");
+        }
+        assertTrue("ExecutorService should be isTerminated() after awaitTermination returns true", executorService.isTerminated());
+    }
+
     protected final long getTimeoutDuration() {
         // TODO make this dependent on features of the test subject? longer for "really" async stuff, if required
         return 150;
@@ -213,7 +228,7 @@ public abstract class AbstractExecutorTester<E extends Executor, G extends Execu
                     Thread thisThread = Thread.currentThread();
                     checkState(runningThread == null, "Runnable should be executed only once. Already executed on thread[%s], tried again on thread [%s]", runningThread, thisThread.getName());
                     runningThread = thisThread;
-                    //    			logRunning(thisThread);
+                    // logRunning(thisThread);
                 } finally {
                     latchForFirstRun.countDown();
                 }
@@ -238,7 +253,7 @@ public abstract class AbstractExecutorTester<E extends Executor, G extends Execu
 
         @Override
         public final boolean wasInterrupted() {
-            return ExecutorTestSubjectGenerator.wasInterrupted(runningThread);
+            return getSubjectGenerator().wasInterrupted(runningThread);
         }
         @Override
         public final boolean wasRun() {
@@ -256,12 +271,10 @@ public abstract class AbstractExecutorTester<E extends Executor, G extends Execu
         abstract void doRun();
 
         @Override
-        public boolean awaitRun(long timeout, TimeUnit unit) throws InterruptedException {
-            return latchForFirstRun.await(timeout, unit);
-        }
-        @Override
-        public boolean awaitRunDefault() throws InterruptedException {
-            return latchForFirstRun.await(getTimeoutDuration(), getTimeoutUnit());
+        public void awaitRunningDefault() throws InterruptedException, TimeoutException {
+            if (!latchForFirstRun.await(getTimeoutDuration(), getTimeoutUnit())) {
+                throw new TimeoutException();
+            }
         }
 
         @SuppressWarnings("unused")
@@ -371,7 +384,6 @@ public abstract class AbstractExecutorTester<E extends Executor, G extends Execu
 			throw new AssertionError("Found no methods called [" + methodName + "] on which to run NullPointerTester tests");
 		}
 	}
-
 	private final class ThrowingRunnable extends AbstractLoggingRunnable {
         @Override
         void doRun() throws RuntimeRunnableException {
@@ -380,6 +392,22 @@ public abstract class AbstractExecutorTester<E extends Executor, G extends Execu
         @Override
         public String toString() {
         	return getClass().getSimpleName();
+        }
+    }
+    protected final class UninterruptibleRunnable extends AbstractLoggingRunnable implements Closeable {
+        private volatile boolean stopped = false;
+
+        public UninterruptibleRunnable() {
+            registerToClose(this);
+        }
+
+        @Override
+        void doRun() {
+            while (!stopped) {}
+        }
+        @Override
+        public void close() {
+            stopped = true;
         }
     }
     /**
@@ -398,5 +426,8 @@ public abstract class AbstractExecutorTester<E extends Executor, G extends Execu
             callables.add(runnable.asCallableReturningDefault());
         }
         return callables;
+    }
+    protected final void registerToClose(Closeable c) {
+        toClose.add(c);
     }
 }
