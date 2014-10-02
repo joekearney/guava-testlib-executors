@@ -1,13 +1,9 @@
 package libjoe.testlib.executors.testers;
 
-import static java.util.concurrent.Executors.newSingleThreadExecutor;
-
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeoutException;
 
 import libjoe.testlib.executors.ExecutorSubmitter;
@@ -39,10 +35,5 @@ public class AbstractOneSubmitterExecutorTester<E extends Executor> extends Abst
     }
     protected final ExecutorSubmitter<E> getSubmitter() {
         return getSubjectGenerator().getSubmitter();
-    }
-
-    protected final ExecutorService newAncilliarySingleThreadedExecutor() {
-        ThreadFactory threadFactory = getSubjectGenerator().getAncilliaryThreadFactory();
-        return getSubjectGenerator().registerExecutor(newSingleThreadExecutor(threadFactory), threadFactory);
     }
 }

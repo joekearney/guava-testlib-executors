@@ -16,6 +16,7 @@ import libjoe.testlib.executors.testers.BasicShutdownTester;
 import libjoe.testlib.executors.testers.CancellationTester;
 import libjoe.testlib.executors.testers.ExecuteTester;
 import libjoe.testlib.executors.testers.InvokeAllTester;
+import libjoe.testlib.executors.testers.InvokeAnyTester;
 import libjoe.testlib.executors.testers.ListenableFutureTester;
 import libjoe.testlib.executors.testers.ShutdownTasksTester;
 import libjoe.testlib.executors.testers.SubmitRejectedTester;
@@ -39,7 +40,7 @@ public final class ExecutorTestSuiteBuilder<E extends Executor> extends FeatureS
     @Override
     protected List<Class<? extends AbstractTester>> getTesters() {
         return Arrays.<Class<? extends AbstractTester>>asList(
-                ExecuteTester.class, InvokeAllTester.class, BasicShutdownTester.class
+                ExecuteTester.class, InvokeAllTester.class, InvokeAnyTester.class, BasicShutdownTester.class
             );
     }
 

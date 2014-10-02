@@ -16,7 +16,7 @@ import libjoe.testlib.executors.ExecutorFeature.Require;
  * @param <E> type of the executor under test
  */
 public class CancellationTester<E extends ExecutorService> extends AbstractOneSubmitterExecutorTester<E> {
-	@Require(absent= {ExecutorFeature.SYNCHRONOUS_EXECUTE, ExecutorFeature.IGNORES_INTERRUPTS})
+	@Require(absent= {ExecutorFeature.SYNCHRONOUS_EXECUTION, ExecutorFeature.IGNORES_INTERRUPTS})
 	public void testCancelRunning_Interrupt() throws Exception {
 		RunnableWithBarrier task = new RunnableWithBarrier(2, 2);
 
@@ -34,7 +34,7 @@ public class CancellationTester<E extends ExecutorService> extends AbstractOneSu
 		}
 	}
 
-    @Require(absent=ExecutorFeature.SYNCHRONOUS_EXECUTE)
+    @Require(absent=ExecutorFeature.SYNCHRONOUS_EXECUTION)
 	public void testCancelRunning_NoInterrupt() throws Exception {
 		RunnableWithBarrier task = new RunnableWithBarrier(2, 3);
 

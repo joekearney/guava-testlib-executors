@@ -30,6 +30,7 @@ public class InvokeAllTester<E extends ExecutorService> extends AbstractExecutor
 		if (maxTasks != ExecutorTestSubjectGenerator.UNASSIGNED) {
 			return maxTasks;
 		} else {
+		    // finger in the air
 			return NUM_TASKS_TO_INVOKE;
 		}
 	}

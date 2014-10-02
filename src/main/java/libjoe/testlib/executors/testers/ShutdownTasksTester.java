@@ -2,7 +2,7 @@ package libjoe.testlib.executors.testers;
 
 import static libjoe.testlib.executors.ExecutorFeature.IGNORES_INTERRUPTS;
 import static libjoe.testlib.executors.ExecutorFeature.SHUTDOWN_SUPPRESSED;
-import static libjoe.testlib.executors.ExecutorFeature.SYNCHRONOUS_EXECUTE;
+import static libjoe.testlib.executors.ExecutorFeature.SYNCHRONOUS_EXECUTION;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
@@ -59,7 +59,7 @@ public class ShutdownTasksTester<E extends ExecutorService> extends AbstractOneS
         assertThat("Executor should be isTerminated() after shutdown on empty executor", executor.isTerminated());
     }
 
-    @Require(absent={SYNCHRONOUS_EXECUTE, SHUTDOWN_SUPPRESSED})
+    @Require(absent={SYNCHRONOUS_EXECUTION, SHUTDOWN_SUPPRESSED})
     public void testAwaitTerminationTimesOutIfTaskRunning_Shutdown() throws Exception {
         E executor = createExecutor();
         UninterruptibleRunnable task = new UninterruptibleRunnable();
@@ -75,7 +75,7 @@ public class ShutdownTasksTester<E extends ExecutorService> extends AbstractOneS
         assertFalse("Executor with blocked task shouldn't be marked as terminated", executor.isTerminated());
         assertFalse("Future still blocking at shutdown should not have been cancelled", future.isCancelled());
     }
-    @Require(absent={SYNCHRONOUS_EXECUTE, SHUTDOWN_SUPPRESSED})
+    @Require(absent={SYNCHRONOUS_EXECUTION, SHUTDOWN_SUPPRESSED})
     public void testTerminationAfterBlockingTaskCompleted_Shutdown() throws Exception {
         E executor = createExecutor();
         UninterruptibleRunnable task = new UninterruptibleRunnable();
@@ -98,7 +98,7 @@ public class ShutdownTasksTester<E extends ExecutorService> extends AbstractOneS
      *
      * TODO consider feature-based description of what an implementation does, and test to that?
      */
-    @Require(absent={SYNCHRONOUS_EXECUTE, SHUTDOWN_SUPPRESSED})
+    @Require(absent={SYNCHRONOUS_EXECUTION, SHUTDOWN_SUPPRESSED})
     public void testAwaitTerminationTimesOutIfTaskRunning_ShutdownNow() throws Exception {
         E executor = createExecutor();
         UninterruptibleRunnable task = new UninterruptibleRunnable();
@@ -115,7 +115,7 @@ public class ShutdownTasksTester<E extends ExecutorService> extends AbstractOneS
         assertFalse("Executor with blocked task shouldn't have returned true from awaitTerminated()", terminated);
         assertFalse("Executor with blocked task shouldn't be marked as terminated", executor.isTerminated());
     }
-    @Require(absent={SYNCHRONOUS_EXECUTE, SHUTDOWN_SUPPRESSED})
+    @Require(absent={SYNCHRONOUS_EXECUTION, SHUTDOWN_SUPPRESSED})
     public void testTerminationAfterBlockingTaskCompleted_ShutdownNow() throws Exception {
         E executor = createExecutor();
         UninterruptibleRunnable task = new UninterruptibleRunnable();
@@ -133,7 +133,7 @@ public class ShutdownTasksTester<E extends ExecutorService> extends AbstractOneS
         assertTrue("Future should be isDone() after termination after shutdownNow()", future.isDone());
     }
 
-    @Require(absent= {SYNCHRONOUS_EXECUTE, SHUTDOWN_SUPPRESSED, IGNORES_INTERRUPTS})
+    @Require(absent= {SYNCHRONOUS_EXECUTION, SHUTDOWN_SUPPRESSED, IGNORES_INTERRUPTS})
     public void testTaskInterruptedByShutdownNow() throws Exception {
         E executor = createExecutor();
         LoggingRunnable task = new RunnableWithBarrier(2, 1);
@@ -144,7 +144,7 @@ public class ShutdownTasksTester<E extends ExecutorService> extends AbstractOneS
 
         awaitTermination(executor);
         assertTrue("Task still blocking at shutdownNow should have been interrupted", task.wasInterrupted());
-    }@Require(absent={SYNCHRONOUS_EXECUTE, SHUTDOWN_SUPPRESSED})
+    }@Require(absent={SYNCHRONOUS_EXECUTION, SHUTDOWN_SUPPRESSED})
     public void testTaskNotInterruptedByShutdown() throws Exception {
         E executor = createExecutor();
         RunnableWithBarrier task = new RunnableWithBarrier(2, 1);

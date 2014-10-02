@@ -43,7 +43,7 @@ public enum ExecutorFeature implements Feature<Executor> {
      *
      * @see ExecutorFeature#SYNCHRONOUS_EXECUTE_EXCEPTIONS
      */
-    SYNCHRONOUS_EXECUTE,
+    SYNCHRONOUS_EXECUTION,
     /**
      * Exceptions thrown from tasks submitted by {@link Executor#execute} are propagated out to the submitter. (The alternative would be to
      * swallow them.)
@@ -60,7 +60,7 @@ public enum ExecutorFeature implements Feature<Executor> {
      * Both {@link #SYNCHRONOUS_EXECUTE} (tasks are run synchronously with submission) and {@link #SYNCHRONOUS_EXECUTE_EXCEPTIONS}
      * (execution exceptions are thrown in the submitting thread).
      */
-    SYNCHRONOUS(SYNCHRONOUS_EXECUTE, SYNCHRONOUS_EXCEPTIONS),
+    SYNCHRONOUS(SYNCHRONOUS_EXECUTION, SYNCHRONOUS_EXCEPTIONS),
 
     /** When there are more tasks queued or running than can be handled, {@link RejectedExecutionException} is thrown on task submission. */
     REJECTS_EXCESS_TASKS,

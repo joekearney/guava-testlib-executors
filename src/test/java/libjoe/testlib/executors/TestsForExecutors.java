@@ -9,7 +9,7 @@ import static libjoe.testlib.executors.ExecutorFeature.REJECTS_EXCESS_TASKS;
 import static libjoe.testlib.executors.ExecutorFeature.SCHEDULED;
 import static libjoe.testlib.executors.ExecutorFeature.SERIALISED_EXECUTION;
 import static libjoe.testlib.executors.ExecutorFeature.SYNCHRONOUS;
-import static libjoe.testlib.executors.ExecutorFeature.SYNCHRONOUS_EXECUTE;
+import static libjoe.testlib.executors.ExecutorFeature.SYNCHRONOUS_EXECUTION;
 import static libjoe.testlib.executors.ExecutorFeature.SYNCHRONOUS_TASK_START;
 
 import java.util.concurrent.ArrayBlockingQueue;
@@ -35,8 +35,8 @@ public class TestsForExecutors {
 	public static Test suite() throws Exception {
 		TestSuite suite = new TestSuite("tests for executors");
 
-		suite.addTest(createTestsForJavaUtil());
 		suite.addTest(createTestsForGuava());
+		suite.addTest(createTestsForJavaUtil());
 
 		return suite;
 	}
@@ -167,7 +167,7 @@ public class TestsForExecutors {
 				    }
 				})
 			.named("SerializingExecutor")
-			.withFeatures(EXECUTOR, SYNCHRONOUS_EXECUTE, SERIALISED_EXECUTION)
+			.withFeatures(EXECUTOR, SYNCHRONOUS_EXECUTION, SERIALISED_EXECUTION)
 			.createTestSuite());
 
         return guava;

@@ -71,7 +71,7 @@ public enum ExecutorServiceSubmitters implements ExecutorSubmitter<ExecutorServi
      * {@link ExecutorSubmitter#RETURN_VALUE} as the value in the {@link Future}. Be aware that the task is specified to be executed
      * synchronously.
      */
-    INVOKE_ALL(ExecutorFeature.SYNCHRONOUS_EXECUTE) {
+    INVOKE_ALL(ExecutorFeature.SYNCHRONOUS_EXECUTION) {
         @Override
         public Future<?> submit(ExecutorService executor, LoggingRunnable runnable) throws InterruptedException {
             List<Callable<Object>> task = Arrays.asList(runnable.asCallableReturningDefault());

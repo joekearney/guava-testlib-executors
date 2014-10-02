@@ -2,7 +2,7 @@ package libjoe.testlib.executors.testers;
 
 import static libjoe.testlib.executors.ExecutorFeature.EXECUTOR_SERVICE;
 import static libjoe.testlib.executors.ExecutorFeature.REJECTS_EXCESS_TASKS;
-import static libjoe.testlib.executors.ExecutorFeature.SYNCHRONOUS_EXECUTE;
+import static libjoe.testlib.executors.ExecutorFeature.SYNCHRONOUS_EXECUTION;
 import static libjoe.testlib.executors.ExecutorFeature.SYNCHRONOUS_TASK_START;
 
 import java.util.ArrayList;
@@ -16,7 +16,7 @@ import libjoe.testlib.executors.ExecutorServiceSubmitters;
 
 @Require(value = { EXECUTOR_SERVICE })
 public class SubmitRejectedTester<E extends ExecutorService> extends AbstractOneSubmitterExecutorTester<E> {
-    @Require(value = { REJECTS_EXCESS_TASKS }, absent = { SYNCHRONOUS_EXECUTE })
+    @Require(value = { REJECTS_EXCESS_TASKS }, absent = { SYNCHRONOUS_EXECUTION })
     public void testExcessTasksRejected_Execute() throws Exception {
         E executor = createExecutor();
 
@@ -36,7 +36,7 @@ public class SubmitRejectedTester<E extends ExecutorService> extends AbstractOne
      * absent=SYNCHRONOUS_TASK_START because we don't want a newCachedThreadPool to start thousands of threads simultaneously.
      */
     private static final int MANY_TASKS = 10_000;
-    @Require(absent = { REJECTS_EXCESS_TASKS, SYNCHRONOUS_EXECUTE, SYNCHRONOUS_TASK_START })
+    @Require(absent = { REJECTS_EXCESS_TASKS, SYNCHRONOUS_EXECUTION, SYNCHRONOUS_TASK_START })
     public void testMassiveExcessTasksNotRejected() throws Exception {
         final List<RunnableWithBarrier> tasks = new ArrayList<>();
         E executor = createExecutor();

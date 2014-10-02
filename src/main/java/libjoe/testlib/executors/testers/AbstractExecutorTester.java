@@ -2,6 +2,7 @@ package libjoe.testlib.executors.testers;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
+import static java.util.concurrent.Executors.newSingleThreadExecutor;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
@@ -26,6 +27,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -61,6 +63,9 @@ public abstract class AbstractExecutorTester<E extends Executor, G extends Execu
             } catch (Exception swallow) {}
         }
         getSubjectGenerator().tearDown();
+
+        // clear interrupted flag
+        Thread.interrupted();
     }
 
     /**
@@ -300,6 +305,22 @@ public abstract class AbstractExecutorTester<E extends Executor, G extends Execu
         }
         return tasks;
     }
+    /**
+     * From another thread in a new executor, awaits on the barrier in the task, then interrupts the calling thread.
+     */
+    protected final void interruptMeAtBarrier(final RunnableWithBarrier task) {
+        final Thread mainThread = Thread.currentThread();
+        final ExecutorService ancilliary = newAncilliarySingleThreadedExecutor();
+        ancilliary.submit(new Callable<Void>() {
+            @Override
+            public Void call() throws Exception {
+                task.awaitBarrierDefault();
+                mainThread.interrupt();
+                ancilliary.shutdown();
+                return null;
+            }
+        });
+    }
     protected class RunnableWithBarrier extends AbstractLoggingRunnable {
         private final CyclicBarrier barrier;
         private final int rounds;
@@ -329,7 +350,7 @@ public abstract class AbstractExecutorTester<E extends Executor, G extends Execu
                 barrier.await(getTimeoutDuration(), getTimeoutUnit());
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                throw new RuntimeException(e);
+                throw new RuntimeInterruptedException(e);
             } catch (BrokenBarrierException | TimeoutException e) {
                 throw new RuntimeException(e);
             } finally {
@@ -368,7 +389,7 @@ public abstract class AbstractExecutorTester<E extends Executor, G extends Execu
         }
     }
     /** Creates a {@link Runnable} that throws {@link RuntimeRunnableException}. */
-    protected final ThrowingRunnable throwingRunnable() {
+    protected final LoggingRunnable throwingRunnable() {
         return new ThrowingRunnable();
     }
     protected final void runNullPointerTests(String methodName) {
@@ -415,8 +436,17 @@ public abstract class AbstractExecutorTester<E extends Executor, G extends Execu
      */
     protected static final class RuntimeRunnableException extends RuntimeException {
         private static final long serialVersionUID = 8792817003755375674L;
-        RuntimeRunnableException() {
+        public RuntimeRunnableException() {
             super("test exception, expected");
+        }
+    }
+    /**
+     * Runtime wrapper around an {@link InterruptedException}.
+     */
+    protected static final class RuntimeInterruptedException extends RuntimeException {
+        private static final long serialVersionUID = 8792817003755375675L;
+        RuntimeInterruptedException(InterruptedException e) {
+            super(e);
         }
     }
 
@@ -429,5 +459,9 @@ public abstract class AbstractExecutorTester<E extends Executor, G extends Execu
     }
     protected final void registerToClose(Closeable c) {
         toClose.add(c);
+    }
+    protected final ExecutorService newAncilliarySingleThreadedExecutor() {
+        ThreadFactory threadFactory = getSubjectGenerator().getAncilliaryThreadFactory();
+        return getSubjectGenerator().registerExecutor(newSingleThreadExecutor(threadFactory), threadFactory);
     }
 }
