@@ -211,6 +211,36 @@ public abstract class AbstractExecutorTester<E extends Executor, G extends Execu
         assertTrue("ExecutorService should be isTerminated() after awaitTermination returns true", executorService.isTerminated());
     }
 
+    /**
+     * From another thread in a new executor, awaits on the barrier in the task, then interrupts the calling thread.
+     */
+    protected final void interruptMeAtBarrier(final RunnableWithBarrier task) {
+        final Thread mainThread = Thread.currentThread();
+        final ExecutorService ancilliary = newAncilliarySingleThreadedExecutor();
+        ancilliary.submit(new Callable<Void>() {
+            @Override
+            public Void call() throws Exception {
+                task.awaitBarrierDefault();
+                mainThread.interrupt();
+                ancilliary.shutdown();
+                return null;
+            }
+        });
+    }
+    protected final void interruptMeWhenBlocked() {
+        final Thread mainThread = Thread.currentThread();
+        final ExecutorService ancilliary = newAncilliarySingleThreadedExecutor();
+        ancilliary.submit(new Callable<Void>() {
+            @Override
+            public Void call() throws Exception {
+                while (!BLOCKING_STATES.contains(mainThread.getState()) && !Thread.currentThread().isInterrupted()) {}
+                mainThread.interrupt();
+                ancilliary.shutdown();
+                return null;
+            }
+        });
+    }
+
     protected final long getTimeoutDuration() {
         // TODO make this dependent on features of the test subject? longer for "really" async stuff, if required
         return 150;
@@ -304,22 +334,6 @@ public abstract class AbstractExecutorTester<E extends Executor, G extends Execu
             tasks.add(new RunnableWithBarrier(parties, rounds));
         }
         return tasks;
-    }
-    /**
-     * From another thread in a new executor, awaits on the barrier in the task, then interrupts the calling thread.
-     */
-    protected final void interruptMeAtBarrier(final RunnableWithBarrier task) {
-        final Thread mainThread = Thread.currentThread();
-        final ExecutorService ancilliary = newAncilliarySingleThreadedExecutor();
-        ancilliary.submit(new Callable<Void>() {
-            @Override
-            public Void call() throws Exception {
-                task.awaitBarrierDefault();
-                mainThread.interrupt();
-                ancilliary.shutdown();
-                return null;
-            }
-        });
     }
     protected class RunnableWithBarrier extends AbstractLoggingRunnable {
         private final CyclicBarrier barrier;
@@ -415,6 +429,12 @@ public abstract class AbstractExecutorTester<E extends Executor, G extends Execu
         	return getClass().getSimpleName();
         }
     }
+    /**
+     * Task that hot-loops until {@link UninterruptibleRunnable#close()} is called. Creation registers the task to be stopped on teardown,
+     * so you don't need a finally block.
+     *
+     * @author Joe Kearney
+     */
     protected final class UninterruptibleRunnable extends AbstractLoggingRunnable implements Closeable {
         private volatile boolean stopped = false;
 

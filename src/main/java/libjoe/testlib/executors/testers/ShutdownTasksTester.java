@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeUnit;
 
 import libjoe.testlib.executors.ExecutorFeature;
 import libjoe.testlib.executors.ExecutorFeature.Require;
@@ -131,6 +132,19 @@ public class ShutdownTasksTester<E extends ExecutorService> extends AbstractOneS
         task.close();
         awaitTermination(executor);
         assertTrue("Future should be isDone() after termination after shutdownNow()", future.isDone());
+    }
+    @Require(absent={SYNCHRONOUS_EXECUTION})
+    public void testAwaitTerminationInterruption() throws Exception {
+        UninterruptibleRunnable task = new UninterruptibleRunnable();
+        E executor = createExecutor();
+        submit(executor, task);
+        task.awaitRunningDefault();
+
+        interruptMeWhenBlocked();
+        executor.shutdown();
+        try {
+            executor.awaitTermination(10, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {}
     }
 
     @Require(absent= {SYNCHRONOUS_EXECUTION, SHUTDOWN_SUPPRESSED, IGNORES_INTERRUPTS})

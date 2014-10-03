@@ -41,12 +41,14 @@ public class BasicShutdownTester<E extends ExecutorService> extends AbstractExec
     public void testNotTerminatedAtStart() throws Exception {
         assertFalse("Executor should not be isTerminated() before doing anything to it", createExecutor().isTerminated());
     }
-    public void testNotTerminatedSoon() throws Exception {
+    public void testAwaitTerminationWithoutShutdown() throws Exception {
         /*
          * Just give it a positive number, don't want to sleep for too long. We're really just checking whether it returns immediately.
          */
         if (createExecutor().awaitTermination(10, TimeUnit.MILLISECONDS)) {
-            fail("Executor terminated soon after start");
+            fail("Executor terminated without shutdown() or shutdownNow()");
         }
+        assertFalse("Executor should not be isTerminated() before doing anything to it", createExecutor().isTerminated());
+        assertFalse("Executor should not be isShutdown() before doing anything to it", createExecutor().isShutdown());
     }
 }
