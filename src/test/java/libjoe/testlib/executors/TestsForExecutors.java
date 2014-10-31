@@ -134,12 +134,14 @@ public class TestsForExecutors {
          * perhaps fork-join should expect this sort of coupling between tasks, in which case cancellation of subsequent tasks may be
          * reasonable.
          */
-        fjpSuite.suppressing(InvokeAllTester.class.getMethod("testInvokeAllMixedCompletesAllTasks_NoTimeout"));
+        fjpSuite.suppressing(InvokeAllTester.class.getMethod("testInvokeAllMixedCompletesAllTasks_NoTimeout"),
+                             InvokeAllTester.class.getMethod("testInterruptedWhileWaiting_NoTimeout"),
+                             InvokeAllTester.class.getMethod("testInterruptedWhileWaiting_Timeout"));
 
         return fjpSuite.createTestSuite();
     }
 
-	static TestSuite createTestsForGuava() {
+	static TestSuite createTestsForGuava() throws Exception {
         TestSuite guava = new TestSuite("guava");
 
         guava.addTest(ExecutorTestSuiteBuilder.using(new ExecutorTestSubjectGenerator<ListeningExecutorService>() {
@@ -150,6 +152,8 @@ public class TestsForExecutors {
                 })
             .named("MoreExecutors.newDirectExecutorService")
             .withFeatures(LISTENING, EXECUTOR_SERVICE, SYNCHRONOUS, SERIALISED_EXECUTION, NO_CONTROL_OF_THREAD_FACTORY)
+            .suppressing(InvokeAllTester.class.getMethod("testInterruptedWhileWaiting_NoTimeout"),
+                         InvokeAllTester.class.getMethod("testInterruptedWhileWaiting_Timeout"))
             .createTestSuite());
         guava.addTest(ExecutorTestSuiteBuilder.using(new ExecutorTestSubjectGenerator<Executor>() {
                     @Override
