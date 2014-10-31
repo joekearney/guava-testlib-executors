@@ -106,7 +106,15 @@ public abstract class ExecutorTestSubjectGenerator<E extends Executor> implement
 	    return executor;
 	}
 
+    /**
+     * Creates the {@link Executor} under test. The given {@link ThreadFactory} should be used by the created executor, unless
+     * {@link ExecutorFeature#NO_CONTROL_OF_THREAD_FACTORY} is specified as a feature of the executor.
+     *
+     * @param threadFactory {@link ThreadFactory} to be used by the executor
+     * @return the executor to test
+     */
 	protected abstract E createExecutor(ThreadFactory threadFactory);
+
 	public final int getMaxCapacity() {
         return maxCapacity;
     }

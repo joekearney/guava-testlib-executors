@@ -2,11 +2,16 @@ package libjoe.testlib.executors.testers;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeoutException;
 
 import libjoe.testlib.executors.ExecutorFeature;
 import libjoe.testlib.executors.ExecutorFeature.Require;
+import libjoe.testlib.executors.LoggingRunnable;
+
+import com.google.common.base.Throwables;
 
 /**
  * Tests for cancellation of tasks submitted to an {@link ExecutorService}.
@@ -26,7 +31,16 @@ public class CancellationTester<E extends ExecutorService> extends AbstractOneSu
 
 			boolean cancelled = future.cancel(true);
 			if (cancelled) {
-				assertThat("Runnable should have been interrupted", task.wasInterrupted());
+			    if (!task.wasInterrupted()) {
+			        if (future.isDone()) {
+			            try {
+			                future.get();
+			            } catch (Exception e) {
+			                fail("Runnable should have been interrupted, but was not. " + Throwables.getStackTraceAsString(e));
+			            }
+			        }
+			        fail("Runnable should have been interrupted, but was not");
+			    }
 			}
 			checkCancelledFuture(future);
 		} finally {
@@ -57,4 +71,19 @@ public class CancellationTester<E extends ExecutorService> extends AbstractOneSu
 			task.resetBarrier(); // just in case
 		}
 	}
+
+    public void testCancelCompletedFuture_MayInterrupt() throws Exception {
+        doTestCancelCompletedFuture(true);
+    }
+    public void testCancelCompletedFuture_MayNotInterrupt() throws Exception {
+        doTestCancelCompletedFuture(false);
+    }
+    private void doTestCancelCompletedFuture(boolean mayInterruptIfRunning) throws InterruptedException, ExecutionException,
+            TimeoutException {
+        LoggingRunnable task = noopRunnable();
+        Future<?> future = submit(createExecutor(), task);
+        checkCompletedFuture(task, future, getDefaultExpectedValue());
+        assertFalse("Future#cancel(" + mayInterruptIfRunning + ") should not return true if invoked after completion", future.cancel(mayInterruptIfRunning));
+        assertFalse("Task should not have been interrupted by Future#cancel(" + mayInterruptIfRunning + ") invoked after completion", task.wasInterrupted());
+    }
 }

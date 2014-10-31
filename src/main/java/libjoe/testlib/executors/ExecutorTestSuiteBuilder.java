@@ -4,6 +4,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
 import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Executor;
@@ -80,7 +81,9 @@ public final class ExecutorTestSuiteBuilder<E extends Executor> extends FeatureS
                     "If you want to test for REJECTS_EXCESS_TASKS in " + getName() + ", you need to give a concurrencyLevel on the test suite builder.");
         }
 
-        TestSuite testSuite = createDirectTestSuite();
+        TestSuite testSuite = super.createTestSuite();
+
+        addSubmitterFeatureTestSuites(testSuite);
 
         if (getFeatures().contains(ExecutorFeature.EXECUTOR_SERVICE) && !getFeatures().contains(ExecutorFeature.LISTENING)) {
             TestSuite derivedTestSuiteForListenableDecorator = createDerivedTestSuiteForListenableDecorator(testSuite);
@@ -90,32 +93,41 @@ public final class ExecutorTestSuiteBuilder<E extends Executor> extends FeatureS
         return testSuite;
     }
 
-    private static final Set<ExecutorServiceSubmitters> ALL_ES_SUBMITTERS = Sets.immutableEnumSet(Arrays.asList(ExecutorServiceSubmitters.values()));
-    private static final Set<ScheduledExecutorServiceSubmitters> ALL_SES_SUBMITTERS = Sets.immutableEnumSet(Arrays.asList(ScheduledExecutorServiceSubmitters.values()));
-    private TestSuite createDirectTestSuite() {
-        TestSuite superTestSuite = super.createTestSuite();
-
+    private static final Set<ExecutorServiceSubmitters> ALL_ES_SUBMITTERS = Sets.immutableEnumSet(EnumSet.allOf(ExecutorServiceSubmitters.class));
+    private static final Set<ScheduledExecutorServiceSubmitters> ALL_SES_SUBMITTERS = Sets.immutableEnumSet(EnumSet.allOf(ScheduledExecutorServiceSubmitters.class));
+    private void addSubmitterFeatureTestSuites(TestSuite testSuite) {
         if (getFeatures().contains(ExecutorFeature.EXECUTOR_SERVICE)) {
-            addTestsForSubmitters(superTestSuite, ALL_ES_SUBMITTERS);
+            addTestsForSubmitters(testSuite, ALL_ES_SUBMITTERS);
         }
         if (getFeatures().contains(ExecutorFeature.SCHEDULED)) {
-            addTestsForSubmitters(superTestSuite, ALL_SES_SUBMITTERS);
+            addTestsForSubmitters(testSuite, ALL_SES_SUBMITTERS);
         }
-        return superTestSuite;
     }
 
-    private <ES extends Feature<?> & ExecutorSubmitter<E>> void addTestsForSubmitters(TestSuite superTestSuite, Set<? extends ExecutorSubmitter<?>> allSubmitters) {
-        for (ExecutorSubmitter<?> submitter : allSubmitters) {
-            @SuppressWarnings("unchecked") // feature says this case works, yes this is outside the type system
-            ES castSubmitter = (ES) submitter;
-            OneSubmitterTestSuiteGenerator<E> oneMethodGenerator = new OneSubmitterTestSuiteGenerator<>(getSubjectGenerator(), castSubmitter);
+    /**
+     * Creates a derived test suite over the invocation options implemented by the set of submitters. If the submission options are not
+     * compatible with the
+     *
+     * @param superTestSuite test suite into which to write the generated tests
+     * @param allSubmitters set of execution submitters for this type of executor
+     * @param <E2> refined type of the executor. This is a subtype of {@code E}; we can't enforce this in the type system but the presence
+     *        of a feature is evidence for it.
+     * @param <ES> type of the submitter to the executor, likely one of the enums implementing {@link ExecutorSubmitter}
+     */
+    private <E2 extends Executor, ES extends Feature<E2> & ExecutorSubmitter<E2>> void addTestsForSubmitters(TestSuite superTestSuite, Set<ES> allSubmitters) {
+        // the presence of the features in the set says this cast works, because E2 <: E
+        @SuppressWarnings("unchecked")
+        ExecutorTestSubjectGenerator<E2> castSubjectGenerator = (ExecutorTestSubjectGenerator<E2>) getSubjectGenerator();
+
+        for (ES submitter : allSubmitters) {
+            OneSubmitterTestSuiteGenerator<E2> oneMethodGenerator = new OneSubmitterTestSuiteGenerator<>(castSubjectGenerator, submitter);
             String oneMethodName = getName() + " [submitter: " + submitter + "]";
 
             Set<Feature<?>> oneSubmitterFeatures = Helpers.copyToSet(getFeatures());
             oneSubmitterFeatures.removeAll(allSubmitters);
-            oneSubmitterFeatures.add(castSubmitter);
+            oneSubmitterFeatures.add(submitter);
 
-            OneSubmitterTestSuiteBuilder<E> builder = new OneSubmitterTestSuiteBuilder<>(oneMethodGenerator)
+            OneSubmitterTestSuiteBuilder<E2> builder = new OneSubmitterTestSuiteBuilder<>(oneMethodGenerator)
                 .named(oneMethodName)
                 .withFeatures(oneSubmitterFeatures)
                 .withSetUp(getSetUp())
@@ -174,10 +186,10 @@ public final class ExecutorTestSuiteBuilder<E extends Executor> extends FeatureS
         }
     }
     public static final class OneSubmitterTestSuiteGenerator<E extends Executor> extends ExecutorTestSubjectGenerator<E> {
-        private final ExecutorTestSubjectGenerator<E> backingGenerator;
+        private final ExecutorTestSubjectGenerator<? extends E> backingGenerator;
         private final ExecutorSubmitter<E> submitter;
 
-        public OneSubmitterTestSuiteGenerator(ExecutorTestSubjectGenerator<E> backingGenerator, ExecutorSubmitter<E> submitter) {
+        public OneSubmitterTestSuiteGenerator(ExecutorTestSubjectGenerator<? extends E> backingGenerator, ExecutorSubmitter<E> submitter) {
             this.backingGenerator = backingGenerator;
             this.submitter = submitter;
 

@@ -36,4 +36,7 @@ public class AbstractOneSubmitterExecutorTester<E extends Executor> extends Abst
     protected final ExecutorSubmitter<E> getSubmitter() {
         return getSubjectGenerator().getSubmitter();
     }
+    protected final Object getDefaultExpectedValue() {
+        return getSubmitter().getExpectedValue();
+    }
 }

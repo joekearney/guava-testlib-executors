@@ -363,7 +363,7 @@ public abstract class AbstractExecutorTester<E extends Executor, G extends Execu
             try {
                 barrier.await(getTimeoutDuration(), getTimeoutUnit());
             } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
+//                Thread.currentThread().interrupt();
                 throw new RuntimeInterruptedException(e);
             } catch (BrokenBarrierException | TimeoutException e) {
                 throw new RuntimeException(e);
