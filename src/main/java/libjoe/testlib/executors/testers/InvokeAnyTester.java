@@ -111,7 +111,7 @@ public class InvokeAnyTester<E extends ExecutorService> extends AbstractExecutor
             fail("Interrupted while waiting on invokeAny(task), should have thrown InterruptedException or an exception with that root cause");
         } catch (InterruptedException expected) {
         } catch (ExecutionException e) {
-            assertThat("Expected InterruptedException as the root cause", Throwables.getRootCause(e) instanceof InterruptedException);
+            assertRootCause(e, InterruptedException.class);
         }
 
     }
@@ -125,7 +125,7 @@ public class InvokeAnyTester<E extends ExecutorService> extends AbstractExecutor
             fail("Interrupted while waiting on invokeAny(task, timeout, unit), should have thrown InterruptedException or an exception with that root cause");
         } catch (InterruptedException expected) {
         } catch (ExecutionException e) {
-            assertThat("Expected InterruptedException as the root cause", Throwables.getRootCause(e) instanceof InterruptedException);
+            assertRootCause(e, InterruptedException.class);
         }
     }
     @Require(absent=SYNCHRONOUS_EXECUTION)

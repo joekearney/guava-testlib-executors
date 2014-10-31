@@ -1,5 +1,6 @@
 package libjoe.testlib.executors.testers;
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
@@ -21,6 +22,8 @@ import libjoe.testlib.executors.ExecutorTestSubjectGenerator;
 import libjoe.testlib.executors.LoggingRunnable;
 
 import org.hamcrest.Matchers;
+
+import com.google.common.collect.ImmutableList;
 
 @Require(value = ExecutorFeature.EXECUTOR_SERVICE)
 public class InvokeAllTester<E extends ExecutorService> extends AbstractExecutorTester<E, ExecutorTestSubjectGenerator<E>> {
@@ -160,6 +163,74 @@ public class InvokeAllTester<E extends ExecutorService> extends AbstractExecutor
 			//expected
 		}
 	}
+
+    // Timeout tests
+    @Require(absent=ExecutorFeature.SYNCHRONOUS_EXCEPTIONS)
+    public void testLongRunningOneTaskTimesOut() throws Exception {
+        doTestLongRunningTasksTimesOut(1);
+    }
+    @Require(absent=ExecutorFeature.SYNCHRONOUS_EXCEPTIONS)
+    public void testLongRunningManyTasksTimesOut() throws Exception {
+        doTestLongRunningTasksTimesOut(Math.max(2, getNumberOfTasksToExecute()));
+    }
+    @Require(value=ExecutorFeature.SYNCHRONOUS_EXCEPTIONS)
+    public void testLongRunningOneTaskTimesOut_SyncExceptions() throws Exception {
+        try {
+            doTestLongRunningTasksTimesOut(1);
+        } catch (Exception e) {
+            assertRootCause(e, TimeoutException.class);
+        }
+    }
+    @Require(value=ExecutorFeature.SYNCHRONOUS_EXCEPTIONS)
+    public void testLongRunningManyTasksTimesOut_SyncExceptions() throws Exception {
+        try {
+            doTestLongRunningTasksTimesOut(Math.max(2, getNumberOfTasksToExecute()));
+        } catch (Exception e) {
+            assertRootCause(e, TimeoutException.class);
+        }
+    }
+    private void doTestLongRunningTasksTimesOut(int count) throws Exception {
+        /*
+         * Synchronous versions allow the interpretation of the spec where the caught InterruptionException is the failure that causes an
+         * ExecutionException to be thrown.
+         */
+        ImmutableList.Builder<Callable<Object>> builder = ImmutableList.builder();
+        for (int i = 0; i < count; i++) {
+            builder.add(new RunnableWithBarrier(2, 1).asCallableReturningDefault());
+        }
+        List<Future<Object>> results = createExecutor().invokeAll(builder.build(), 10, MILLISECONDS);
+        for (Future<Object> result : results) {
+            checkCancelledFuture(result);
+        }
+    }
+
+    // Interruption tests
+    /*
+     * Don't respect ExecutorFeature.IGNORES_INTERRUPTS here, which applies only to the threads created by the test thread factory.
+     * Synchronous versions allow the interpretation of the spec where the caught InterruptionException is the failure that causes
+     * an ExecutionException to be thrown.
+     */
+    public void testInterruptedWhileWaiting_NoTimeout() throws Exception {
+        doTestInterruptedWhileWaiting(false);
+    }
+    public void testInterruptedWhileWaiting_Timeout() throws Exception {
+        doTestInterruptedWhileWaiting(true);
+    }
+    private void doTestInterruptedWhileWaiting(boolean withTimeout) {
+        final RunnableWithBarrier task1 = new RunnableWithBarrier(2, 2);
+        final RunnableWithBarrier task2 = new RunnableWithBarrier(2, 2);
+        ImmutableList<Callable<Object>> tasks = ImmutableList.of(task1.asCallableReturningDefault(), task2.asCallableReturningDefault());
+
+        interruptMeAtBarrier(task1);
+        try {
+            if (withTimeout) {
+                createExecutor().invokeAll(tasks, getTimeoutDuration(), getTimeoutUnit());
+            } else {
+                createExecutor().invokeAll(tasks);
+            }
+            fail("Interrupted while waiting on invokeAny(task), should have thrown InterruptedException or an exception with that root cause");
+        } catch (InterruptedException expected) {}
+    }
 
 	public void testInvokeAllNullPointerExceptions() throws NoSuchMethodException, SecurityException {
 		runNullPointerTests("invokeAll");

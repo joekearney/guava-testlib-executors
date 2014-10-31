@@ -38,6 +38,7 @@ import libjoe.testlib.executors.ExecutorTestSubjectGenerator;
 import libjoe.testlib.executors.LoggingRunnable;
 
 import com.google.common.base.MoreObjects;
+import com.google.common.base.Throwables;
 import com.google.common.collect.Sets;
 import com.google.common.collect.testing.AbstractTester;
 import com.google.common.testing.NullPointerTester;
@@ -194,6 +195,11 @@ public abstract class AbstractExecutorTester<E extends Executor, G extends Execu
             state = thread.getState();
         }
         assertThat("Expected task in a blocked state (one of " + BLOCKING_STATES + ") but it was " + state, BLOCKING_STATES.contains(state));
+    }
+
+    protected static final void assertRootCause(Throwable exception, Class<? extends Throwable> expectedRootCause) {
+        assertThat("Expected " + expectedRootCause.getSimpleName() + " as the root cause",
+                expectedRootCause.isInstance(Throwables.getRootCause(exception)));
     }
 
     private static void trySleep(long millis) {
