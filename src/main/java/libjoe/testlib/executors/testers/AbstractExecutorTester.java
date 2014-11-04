@@ -120,8 +120,11 @@ public abstract class AbstractExecutorTester<E extends Executor, G extends Execu
         }
     }
 
+    /**
+     * Asserts that the future threw an exception with causal chain matching the types provided.
+     */
     @SafeVarargs
-    protected final <T> void assertThrows(Future<T> future, Class<? extends Throwable> ... types) {
+    protected final <T> void assertThrewInOrder(Future<T> future, Class<? extends Throwable> ... types) {
         try {
             future.get(getTimeoutDuration(), getTimeoutUnit());
             fail("Should have thrown an exception, but nothing was thrown");
@@ -162,7 +165,7 @@ public abstract class AbstractExecutorTester<E extends Executor, G extends Execu
     }
     @SafeVarargs
     protected final void checkFutureAfterExecutionException(LoggingRunnable task, Future<?> future, Class<? extends Throwable> ... exceptionClasses) throws TimeoutException {
-        assertThrows(future, exceptionClasses);
+        assertThrewInOrder(future, exceptionClasses);
         checkTaskRan(task);
         assertThat("Future should be isDone() after get() throws", future.isDone());
         assertThat("Future should not be isCancelled() after get() throws", !future.isCancelled());

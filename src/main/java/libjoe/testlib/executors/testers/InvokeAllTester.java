@@ -216,18 +216,32 @@ public class InvokeAllTester<E extends ExecutorService> extends AbstractExecutor
     public void testInterruptedWhileWaiting_Timeout() throws Exception {
         doTestInterruptedWhileWaiting(true);
     }
-    private void doTestInterruptedWhileWaiting(boolean withTimeout) {
+    private void doTestInterruptedWhileWaiting(boolean withTimeout) throws TimeoutException {
         final RunnableWithBarrier task1 = new RunnableWithBarrier(2, 2);
         final RunnableWithBarrier task2 = new RunnableWithBarrier(2, 2);
         ImmutableList<Callable<Object>> tasks = ImmutableList.of(task1.asCallableReturningDefault(), task2.asCallableReturningDefault());
 
         interruptMeAtBarrier(task1);
         try {
+            final List<Future<Object>> results;
             if (withTimeout) {
-                createExecutor().invokeAll(tasks, getTimeoutDuration(), getTimeoutUnit());
+                results = createExecutor().invokeAll(tasks, getTimeoutDuration(), getTimeoutUnit());
             } else {
-                createExecutor().invokeAll(tasks);
+                results = createExecutor().invokeAll(tasks);
             }
+
+            /*
+             * TODO Guava MoreExecutors.newDirectExecutorService captures the InterruptedException in an ExecutionException -
+             * it records it in the task not in the call to invokeAll. This is incorrect according to the spec of invokeAll,
+             * but probably not reasonable to expect in a direct implementation.
+             */
+//            try {
+//                results.get(0).get(getTimeoutDuration(), getTimeoutUnit());
+//            } catch (Throwable e) {
+//                assertThat("Expected an InterruptedException in the causal chain, but found none",
+//                        any(getCausalChain(e), instanceOf(InterruptedException.class)));
+//            }
+
             fail("Interrupted while waiting on invokeAny(task), should have thrown InterruptedException or an exception with that root cause");
         } catch (InterruptedException expected) {}
     }
